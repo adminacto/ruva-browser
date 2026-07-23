@@ -9,6 +9,9 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: native
     steps:
       - uses: actions/checkout@v4
 
@@ -16,9 +19,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
-
-      - name: Install NSIS
-        uses: mlugg/setup-nsis@v1
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -30,12 +30,10 @@ jobs:
           key: windows-${{ hashFiles('native/Cargo.lock') }}
 
       - name: Build release
-        working-directory: native
         run: cargo build --release --target x86_64-pc-windows-msvc
 
       - name: Find WebView2Loader.dll
         id: find_dll
-        working-directory: native
         shell: bash
         run: |
           DLL=$(find target/x86_64-pc-windows-msvc/release/build -name "WebView2Loader.dll" -path "*/x64/*" | head -1)
@@ -44,22 +42,22 @@ jobs:
       - name: Prepare installer files
         shell: bash
         run: |
-          mkdir -p installer_files
-          cp native/target/x86_64-pc-windows-msvc/release/ruva-browser.exe installer_files/
-          cp "${{ steps.find_dll.outputs.dll_path }}" installer_files/
-          cp native/icon.ico installer_files/
-          cp LICENSE installer_files/
+          mkdir -p ../installer_files
+          cp target/x86_64-pc-windows-msvc/release/ruva-browser.exe ../installer_files/
+          cp "${{ steps.find_dll.outputs.dll_path }}" ../installer_files/
+          cp icon.ico ../installer_files/
+          cp ../LICENSE ../installer_files/
 
       - name: Download WebView2 bootstrapper
-        working-directory: installer_files
         shell: bash
+        working-directory: installer_files
         run: |
           curl -L -o MicrosoftEdgeWebview2Setup.exe "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
 
       - name: Build NSIS installer
-        uses: thepwagner/action-nsis@v2
-        with:
-          source-file: packaging/installer.nsi
+        shell: bash
+        run: |
+          makensis ../packaging/installer.nsi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
