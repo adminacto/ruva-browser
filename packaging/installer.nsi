@@ -25,6 +25,9 @@ Section "Install"
   SetOutPath $INSTDIR
   File "installer_files\ruva-browser.exe"
 
+  SetOutPath $INSTDIR\chromium
+  File /r "installer_files\chromium\*.*"
+
   CreateDirectory "$SMPROGRAMS\Ruva Brower"
   CreateShortCut "$SMPROGRAMS\Ruva Brower\Ruva Brower.lnk" "$INSTDIR\ruva-browser.exe"
   CreateShortCut "$SMPROGRAMS\Ruva Brower\Uninstall.lnk" "$INSTDIR\uninstall.exe"
@@ -38,6 +41,7 @@ Section "Install"
 SectionEnd
 
 Section "Uninstall"
+  RMDir /r "$INSTDIR\chromium"
   Delete "$INSTDIR\ruva-browser.exe"
   Delete "$INSTDIR\uninstall.exe"
   RMDir "$INSTDIR"

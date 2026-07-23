@@ -613,52 +613,97 @@ async fn chromium_backend(
     log_to_file("=== Chromium backend starting ===");
     log_to_file(&format!("Data dir: {}", data_dir.display()));
 
-    let fetcher_path = data_dir.join("chromium");
-    let _ = std::fs::create_dir_all(&fetcher_path);
-    log_to_file(&format!("Fetcher path: {}", fetcher_path.display()));
+    // Try to find bundled Chromium next to the .exe first
+    let bundled_chrome = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .map(|d| d.join("chromium").join("chrome.exe"));
 
-    let fetcher = BrowserFetcher::new(
-        BrowserFetcherOptions::builder()
-            .with_path(&fetcher_path)
-            .build()
-            .unwrap(),
-    );
-
-    log_to_file("Fetching Chromium binary...");
-    let info = match fetcher.fetch().await {
-        Ok(i) => {
-            log_to_file(&format!("Chromium fetched OK: {}", i.executable_path.display()));
-            i
+    let chrome_path = if let Some(ref p) = bundled_chrome {
+        if p.exists() {
+            log_to_file(&format!("Found bundled Chromium: {}", p.display()));
+            Some(p.clone())
+        } else {
+            log_to_file("No bundled Chromium found next to .exe");
+            None
         }
-        Err(e) => {
-            let msg = format!("FETCH ERROR: {}", e);
-            log_to_file(&msg);
-            show_error_box(&msg);
-            return;
-        }
+    } else {
+        None
     };
 
-    log_to_file("Building browser config...");
-    let config = match BrowserConfig::builder()
-        .chrome_executable(&info.executable_path)
-        .with_head()
-        .args([
-            "--disable-background-networking",
-            "--disable-default-apps",
-            "--disable-extensions",
-            "--disable-sync",
-            "--no-first-run",
-        ])
-        .user_data_dir(data_dir.join("chrome-profile"))
-        .build()
-    {
-        Ok(c) => c,
-        Err(e) => {
-            let msg = format!("CONFIG ERROR: {}", e);
-            log_to_file(&msg);
-            show_error_box(&msg);
-            return;
-        }
+    let (chrome_exe, config) = if let Some(chrome_path) = chrome_path {
+        // Use bundled Chromium - no download needed
+        let c = match BrowserConfig::builder()
+            .chrome_executable(&chrome_path)
+            .with_head()
+            .args([
+                "--disable-background-networking",
+                "--disable-default-apps",
+                "--disable-extensions",
+                "--disable-sync",
+                "--no-first-run",
+            ])
+            .user_data_dir(data_dir.join("chrome-profile"))
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                let msg = format!("CONFIG ERROR: {}", e);
+                log_to_file(&msg);
+                show_error_box(&msg);
+                return;
+            }
+        };
+        (chrome_path, c)
+    } else {
+        // No bundled Chromium - try to download via fetcher
+        log_to_file("No bundled Chromium, trying fetcher...");
+        let fetcher_path = data_dir.join("chromium");
+        let _ = std::fs::create_dir_all(&fetcher_path);
+
+        let fetcher = BrowserFetcher::new(
+            BrowserFetcherOptions::builder()
+                .with_path(&fetcher_path)
+                .build()
+                .unwrap(),
+        );
+
+        log_to_file("Fetching Chromium binary...");
+        let info = match fetcher.fetch().await {
+            Ok(i) => {
+                log_to_file(&format!("Chromium fetched OK: {}", i.executable_path.display()));
+                i
+            }
+            Err(e) => {
+                let msg = format!("FETCH ERROR: {}\n\nChromium not found.\nPlace chrome.exe in the 'chromium' folder next to ruva-browser.exe", e);
+                log_to_file(&msg);
+                show_error_box(&msg);
+                return;
+            }
+        };
+
+        let c = match BrowserConfig::builder()
+            .chrome_executable(&info.executable_path)
+            .with_head()
+            .args([
+                "--disable-background-networking",
+                "--disable-default-apps",
+                "--disable-extensions",
+                "--disable-sync",
+                "--no-first-run",
+            ])
+            .user_data_dir(data_dir.join("chrome-profile"))
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                let msg = format!("CONFIG ERROR: {}", e);
+                log_to_file(&msg);
+                show_error_box(&msg);
+                return;
+            }
+        };
+        (info.executable_path, c)
     };
 
     log_to_file("Launching browser...");

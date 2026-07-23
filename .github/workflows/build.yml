@@ -30,6 +30,20 @@ jobs:
         run: cargo build --release --target x86_64-pc-windows-msvc
         working-directory: native
 
+      - name: Download Chromium
+        shell: bash
+        run: |
+          mkdir -p chromium
+          # Get latest Chrome for Testing version
+          VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" | python -c "import sys,json; d=json.load(sys.stdin); print(d['channels']['Stable']['version'])")
+          echo "Chrome version: $VERSION"
+          curl -L -o chrome-win64.zip "https://storage.googleapis.com/chrome-for-testing-public/${VERSION}/win64/chrome-win64.zip"
+          unzip -o chrome-win64.zip
+          mv chrome-win64/* chromium/
+          rm -rf chrome-win64 chrome-win64.zip
+          ls -la chromium/
+          echo "CHROME_VERSION=${VERSION}" >> $GITHUB_ENV
+
       - name: Prepare installer files
         shell: bash
         run: |
@@ -37,6 +51,7 @@ jobs:
           cp native/target/x86_64-pc-windows-msvc/release/ruva-browser.exe installer_files/
           cp native/icon.ico installer_files/
           cp LICENSE installer_files/
+          cp -r chromium installer_files/
 
       - name: Install NSIS
         run: choco install nsis -y
@@ -47,7 +62,7 @@ jobs:
           cp -r installer_files packaging/
           NSIS_PATH="/c/Program Files (x86)/NSIS/makensis.exe"
           "$NSIS_PATH" packaging/installer.nsi
-          ls packaging/RuvaBrowser-Setup.exe
+          ls -la packaging/RuvaBrowser-Setup.exe
           mv packaging/RuvaBrowser-Setup.exe .
 
       - name: Upload artifact
