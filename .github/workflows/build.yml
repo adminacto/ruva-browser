@@ -10,7 +10,26 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
+      - name: Disable autocrlf
+        run: git config --global core.autocrlf false
+
       - uses: actions/checkout@v4
+        with:
+          set-safe-directory: true
+
+      - name: Verify file encoding
+        shell: bash
+        run: |
+          echo "=== Checking .rs files for CRLF ==="
+          if grep -rPl '\r$' native/src/; then
+            echo "CRLF DETECTED - fixing..."
+            find native/src/ -name '*.rs' -exec sed -i 's/\r$//' {} +
+            echo "Fixed."
+          else
+            echo "No CRLF found - files are clean."
+          fi
+          echo "=== Verifying about:blank string ==="
+          xxd native/src/main_win_chromium.rs | grep -i "blank" || echo "String not found in hex dump"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
