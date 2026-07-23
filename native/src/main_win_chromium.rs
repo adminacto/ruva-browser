@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -565,14 +566,56 @@ use chromiumoxide::fetcher::{BrowserFetcher, BrowserFetcherOptions};
 use chromiumoxide::page::Page;
 use futures::StreamExt;
 
+fn log_to_file(msg: &str) {
+    let path = std::env::var("LOCALAPPDATA")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".into())
+        .replace('\\', "/");
+    let log_path = format!("{}/.ruva/crash.log", path);
+    if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&log_path) {
+        let _ = writeln!(f, "[{}] {}", chrono_offset(), msg);
+    }
+}
+
+fn chrono_offset() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    format!("{}-{:02}-{:02} {:02}:{:02}:{:02}",
+        1970 + (secs / 31557600) as u32,
+        ((secs % 31557600) / 2592000) % 12 + 1,
+        ((secs % 2592000) / 86400) + 1,
+        (secs % 86400) / 3600,
+        (secs % 3600) / 60,
+        secs % 60,
+    )
+}
+
+#[cfg(target_os = "windows")]
+fn show_error_box(msg: &str) {
+    use std::ffi::CString;
+    extern "system" {
+        fn MessageBoxA(hWnd: *mut std::ffi::c_void, lpText: *const i8, lpCaption: *const i8, uType: u32) -> i32;
+    }
+    let text = CString::new(msg).unwrap_or_default();
+    let caption = CString::new("Ruva Brower").unwrap_or_default();
+    unsafe { MessageBoxA(std::ptr::null_mut(), text.as_ptr(), caption.as_ptr(), 0x10); }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn show_error_box(_msg: &str) {}
+
 async fn chromium_backend(
     initial_html: String,
     bridge_js: String,
     cmd_rx: std::sync::mpsc::Receiver<String>,
     data_dir: PathBuf,
 ) {
+    log_to_file("=== Chromium backend starting ===");
+    log_to_file(&format!("Data dir: {}", data_dir.display()));
+
     let fetcher_path = data_dir.join("chromium");
     let _ = std::fs::create_dir_all(&fetcher_path);
+    log_to_file(&format!("Fetcher path: {}", fetcher_path.display()));
 
     let fetcher = BrowserFetcher::new(
         BrowserFetcherOptions::builder()
@@ -581,16 +624,23 @@ async fn chromium_backend(
             .unwrap(),
     );
 
+    log_to_file("Fetching Chromium binary...");
     let info = match fetcher.fetch().await {
-        Ok(i) => i,
+        Ok(i) => {
+            log_to_file(&format!("Chromium fetched OK: {}", i.executable_path.display()));
+            i
+        }
         Err(e) => {
-            eprintln!("Download error: {}", e);
+            let msg = format!("FETCH ERROR: {}", e);
+            log_to_file(&msg);
+            show_error_box(&msg);
             return;
         }
     };
 
+    log_to_file("Building browser config...");
     let config = match BrowserConfig::builder()
-        .chrome_executable(info.executable_path)
+        .chrome_executable(&info.executable_path)
         .with_head()
         .args([
             "--disable-background-networking",
@@ -599,19 +649,28 @@ async fn chromium_backend(
             "--disable-sync",
             "--no-first-run",
         ])
+        .user_data_dir(data_dir.join("chrome-profile"))
         .build()
     {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("Config error: {}", e);
+            let msg = format!("CONFIG ERROR: {}", e);
+            log_to_file(&msg);
+            show_error_box(&msg);
             return;
         }
     };
 
+    log_to_file("Launching browser...");
     let (mut browser, mut handler) = match Browser::launch(config).await {
-        Ok(b) => b,
+        Ok(b) => {
+            log_to_file("Browser launched OK");
+            b
+        }
         Err(e) => {
-            eprintln!("Launch error: {}", e);
+            let msg = format!("LAUNCH ERROR: {}", e);
+            log_to_file(&msg);
+            show_error_box(&msg);
             return;
         }
     };
@@ -620,41 +679,62 @@ async fn chromium_backend(
         while handler.next().await.is_some() {}
     });
 
+    log_to_file("Creating initial page...");
     let page = match browser.new_page("about:blank").await {
-        Ok(p) => p,
+        Ok(p) => {
+            log_to_file("Page created OK");
+            p
+        }
         Err(e) => {
-            eprintln!("Page error: {}", e);
+            let msg = format!("PAGE ERROR: {}", e);
+            log_to_file(&msg);
+            show_error_box(&msg);
             return;
         }
     };
 
-    // Inject IPC bridge (toolbar_inject.js calls window.ipc.postMessage)
-    let _ = page.evaluate_on_new_document(bridge_js.as_str()).await;
+    // Inject IPC bridge
+    if let Err(e) = page.evaluate_on_new_document(bridge_js.as_str()).await {
+        log_to_file(&format!("Bridge inject error: {}", e));
+    }
 
     // Inject toolbar on every new page
-    let toolbar_inject = TOOLBAR_JS.replace('\n', " ");
-    let _ = page.evaluate_on_new_document(toolbar_inject.as_str()).await;
+    let toolbar_inject = TOOLBAR_JS.replace('\n', " ');
+    if let Err(e) = page.evaluate_on_new_document(toolbar_inject.as_str()).await {
+        log_to_file(&format!("Toolbar inject error: {}", e));
+    }
 
     // Load initial NTP
-    let _ = page.set_content(&initial_html).await;
-    let _ = page.evaluate(toolbar_inject.as_str()).await;
+    if let Err(e) = page.set_content(&initial_html).await {
+        log_to_file(&format!("NTP set_content error: {}", e));
+    }
+    if let Err(e) = page.evaluate(toolbar_inject.as_str()).await {
+        log_to_file(&format!("NTP evaluate error: {}", e));
+    }
+
+    log_to_file("Entering command loop...");
 
     // Poll for commands from main thread
     loop {
         match cmd_rx.try_recv() {
             Ok(cmd_str) => {
+                log_to_file(&format!("CMD: {}", &cmd_str[..cmd_str.len().min(200)]));
                 if let Ok(cmd) = serde_json::from_str::<serde_json::Value>(&cmd_str) {
                     match cmd.get("cmd").and_then(|v| v.as_str()) {
                         Some("navigate") => {
                             if let Some(url) = cmd.get("url").and_then(|v| v.as_str()) {
-                                let _ = page.goto(url).await;
+                                if let Err(e) = page.goto(url).await {
+                                    log_to_file(&format!("Navigate error: {}", e));
+                                }
                                 let _ = page.evaluate(toolbar_inject.as_str()).await;
                             }
                         }
                         Some("load_html") => {
                             if let Some(html) = cmd.get("html").and_then(|v| v.as_str()) {
                                 let _ = page.goto("about:blank").await;
-                                let _ = page.set_content(html).await;
+                                if let Err(e) = page.set_content(html).await {
+                                    log_to_file(&format!("set_content error: {}", e));
+                                }
                                 let _ = page.evaluate(toolbar_inject.as_str()).await;
                             }
                         }
@@ -664,6 +744,7 @@ async fn chromium_backend(
                             }
                         }
                         Some("shutdown") => {
+                            log_to_file("Shutdown requested");
                             browser.close().await.ok();
                             std::process::exit(0);
                         }
@@ -672,6 +753,7 @@ async fn chromium_backend(
                 }
             }
             Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                log_to_file("Channel disconnected, exiting");
                 std::process::exit(0);
             }
             Err(_) => {}
