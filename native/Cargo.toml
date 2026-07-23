@@ -22,7 +22,7 @@ wry = "0.49"
 gtk = "0.18"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-chromiumoxide = { version = "0.9", features = ["fetcher"] }
+chromiumoxide = { version = "0.9", features = ["fetcher", "zip8", "rustls"] }
 tokio = { version = "1", features = ["time", "rt-multi-thread"] }
 futures = "0.3"
 
