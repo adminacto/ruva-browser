@@ -57,4 +57,5 @@ jobs:
           cp -r installer_files packaging/
           NSIS_PATH="/c/Program Files (x86)/NSIS/makensis.exe"
           "$NSIS_PATH" packaging/installer.nsi
-          mv RuvaBrowser-Setup.exe .
+          ls packaging/RuvaBrowser-Setup.exe
+          mv packaging/RuvaBrowser-Setup.exe .
