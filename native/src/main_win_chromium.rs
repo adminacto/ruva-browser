@@ -343,7 +343,7 @@ pub fn main() {
     // Spawn chromium backend
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(chromium_backend(initial_html, bridge_js, cmd_rx, data_dir));
+        rt.block_on(chromium_backend(initial_html, bridge_js, cmd_rx, data_dir.clone()));
     });
 
     let kb_state = state.clone();
@@ -573,18 +573,12 @@ async fn chromium_backend(
     let fetcher_path = data_dir.join("chromium");
     let _ = std::fs::create_dir_all(&fetcher_path);
 
-    let fetcher = match BrowserFetcher::new(
+    let fetcher = BrowserFetcher::new(
         BrowserFetcherOptions::builder()
             .with_path(&fetcher_path)
             .build()
             .unwrap(),
-    ) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("Fetcher error: {}", e);
-            return;
-        }
-    };
+    );
 
     let info = match fetcher.fetch().await {
         Ok(i) => i,
@@ -634,15 +628,15 @@ async fn chromium_backend(
     };
 
     // Inject IPC bridge (toolbar_inject.js calls window.ipc.postMessage)
-    let _ = page.evaluate_on_new_document(&bridge_js).await;
+    let _ = page.evaluate_on_new_document(bridge_js.as_str()).await;
 
     // Inject toolbar on every new page
     let toolbar_inject = TOOLBAR_JS.replace('\n', " ");
-    let _ = page.evaluate_on_new_document(&toolbar_inject).await;
+    let _ = page.evaluate_on_new_document(toolbar_inject.as_str()).await;
 
     // Load initial NTP
     let _ = page.set_content(&initial_html).await;
-    let _ = page.evaluate(&toolbar_inject).await;
+    let _ = page.evaluate(toolbar_inject.as_str()).await;
 
     // Poll for commands from main thread
     loop {
@@ -653,14 +647,14 @@ async fn chromium_backend(
                         Some("navigate") => {
                             if let Some(url) = cmd.get("url").and_then(|v| v.as_str()) {
                                 let _ = page.goto(url).await;
-                                let _ = page.evaluate(&toolbar_inject).await;
+                                let _ = page.evaluate(toolbar_inject.as_str()).await;
                             }
                         }
                         Some("load_html") => {
                             if let Some(html) = cmd.get("html").and_then(|v| v.as_str()) {
                                 let _ = page.goto("about:blank").await;
                                 let _ = page.set_content(html).await;
-                                let _ = page.evaluate(&toolbar_inject).await;
+                                let _ = page.evaluate(toolbar_inject.as_str()).await;
                             }
                         }
                         Some("execute_js") => {
