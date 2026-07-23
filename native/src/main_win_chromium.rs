@@ -339,11 +339,12 @@ pub fn main() {
 
     let initial_html = build_ntp_html(&state.borrow().settings);
     let bridge_js = ipc_bridge_js(ipc_port);
+    let data_dir_for_chromium = data_dir.clone();
 
     // Spawn chromium backend
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(chromium_backend(initial_html, bridge_js, cmd_rx, data_dir.clone()));
+        rt.block_on(chromium_backend(initial_html, bridge_js, cmd_rx, data_dir_for_chromium));
     });
 
     let kb_state = state.clone();
