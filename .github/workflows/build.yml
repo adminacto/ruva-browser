@@ -54,19 +54,13 @@ jobs:
         run: |
           curl -L -o MicrosoftEdgeWebview2Setup.exe "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
 
-      - name: Find NSIS
-        id: nsis
-        shell: bash
-        run: |
-          NSIS=$(find /c/Program\ Files*/NSIS -name "makensis.exe" 2>/dev/null | head -1)
-          if [ -z "$NSIS" ]; then NSIS=$(which makensis.exe 2>/dev/null || which makensis 2>/dev/null); fi
-          echo "path=$NSIS" >> $GITHUB_OUTPUT
-          echo "Found NSIS: $NSIS"
+      - name: Install NSIS
+        run: choco install nsis -y
 
       - name: Build NSIS installer
         shell: bash
         run: |
-          "${{ steps.nsis.outputs.path }}" ../packaging/installer.nsi
+          "/c/Program Files (x86)/NSIS/makensis.exe" ../packaging/installer.nsi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
