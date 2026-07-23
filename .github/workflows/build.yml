@@ -35,18 +35,20 @@ jobs:
       - name: Find WebView2Loader.dll
         id: find_dll
         shell: bash
+        working-directory: .
         run: |
-          DLL=$(find target/x86_64-pc-windows-msvc/release/build -name "WebView2Loader.dll" -path "*/x64/*" | head -1)
+          DLL=$(find native/target/x86_64-pc-windows-msvc/release/build -name "WebView2Loader.dll" -path "*/x64/*" | head -1)
           echo "dll_path=$DLL" >> $GITHUB_OUTPUT
 
       - name: Prepare installer files
         shell: bash
+        working-directory: .
         run: |
-          mkdir -p ../installer_files
-          cp target/x86_64-pc-windows-msvc/release/ruva-browser.exe ../installer_files/
-          cp "${{ steps.find_dll.outputs.dll_path }}" ../installer_files/
-          cp icon.ico ../installer_files/
-          cp ../LICENSE ../installer_files/
+          mkdir -p installer_files
+          cp native/target/x86_64-pc-windows-msvc/release/ruva-browser.exe installer_files/
+          cp "${{ steps.find_dll.outputs.dll_path }}" installer_files/
+          cp native/icon.ico installer_files/
+          cp LICENSE installer_files/
 
       - name: Download WebView2 bootstrapper
         shell: bash
@@ -59,8 +61,12 @@ jobs:
 
       - name: Build NSIS installer
         shell: bash
+        working-directory: .
         run: |
-          "/c/Program Files (x86)/NSIS/makensis.exe" ../packaging/installer.nsi
+          NSIS_PATH=$(find "/c/Program Files" -name "makensis.exe" 2>/dev/null | head -1)
+          if [ -z "$NSIS_PATH" ]; then NSIS_PATH=$(find "/c/Program Files (x86)" -name "makensis.exe" 2>/dev/null | head -1); fi
+          echo "NSIS: $NSIS_PATH"
+          "$NSIS_PATH" packaging/installer.nsi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
