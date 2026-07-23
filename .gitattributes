@@ -1,2 +1,21 @@
-*.rs binary
-*.toml binary
+*.rs text eol=lf
+*.toml text eol=lf
+*.html text eol=lf
+*.js text eol=lf
+*.nsi text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+*.rc text eol=lf
+*.manifest text eol=lf
+*.nsh text eol=lf
+LICENSE text eol=lf
+.gitignore text eol=lf
+*.ico binary
+*.png binary
+*.exe binary
+*.dll binary
+*.AppImage binary
+*.zip binary
+*.tar.gz binary
