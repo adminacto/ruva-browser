@@ -1,5 +1,6 @@
 (function(){
   if(document.getElementById('ruva-toolbar')) return;
+  if(!window.ipc) window.ipc={postMessage:function(){}};
   var bar=document.createElement('div');
   bar.id='ruva-toolbar';
   bar.style.cssText='position:fixed;top:0;left:0;right:0;height:40px;background:#2b2b2b;border-bottom:1px solid #444;z-index:2147483647;display:flex;align-items:center;padding:0 8px;gap:6px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;';

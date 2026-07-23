@@ -30,23 +30,13 @@ jobs:
         run: cargo build --release --target x86_64-pc-windows-msvc
         working-directory: native
 
-      - name: Find WebView2Loader.dll
-        id: find_dll
-        shell: bash
-        run: DLL=$(find native/target/x86_64-pc-windows-msvc/release/build -name "WebView2Loader.dll" -path "*/x64/*" | head -1) && echo "dll_path=$DLL" >> $GITHUB_OUTPUT
-
       - name: Prepare installer files
         shell: bash
         run: |
           mkdir -p installer_files
           cp native/target/x86_64-pc-windows-msvc/release/ruva-browser.exe installer_files/
-          cp "$DLL" installer_files/
           cp native/icon.ico installer_files/
           cp LICENSE installer_files/
-          curl -L -o installer_files/MicrosoftEdgeWebview2Setup.exe "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
-          ls -la installer_files/
-        env:
-          DLL: ${{ steps.find_dll.outputs.dll_path }}
 
       - name: Install NSIS
         run: choco install nsis -y

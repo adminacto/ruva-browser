@@ -3,7 +3,7 @@
 mod platform;
 
 #[cfg(target_os = "windows")]
-#[path = "main_win.rs"]
+#[path = "main_win_chromium.rs"]
 mod platform;
 
 fn main() {
