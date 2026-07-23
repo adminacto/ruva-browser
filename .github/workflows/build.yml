@@ -9,9 +9,6 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: native
     steps:
       - uses: actions/checkout@v4
 
@@ -31,53 +28,30 @@ jobs:
 
       - name: Build release
         run: cargo build --release --target x86_64-pc-windows-msvc
+        working-directory: native
 
       - name: Find WebView2Loader.dll
         id: find_dll
         shell: bash
-        working-directory: .
-        run: |
-          DLL=$(find native/target/x86_64-pc-windows-msvc/release/build -name "WebView2Loader.dll" -path "*/x64/*" | head -1)
-          echo "dll_path=$DLL" >> $GITHUB_OUTPUT
+        run: DLL=$(find native/target/x86_64-pc-windows-msvc/release/build -name "WebView2Loader.dll" -path "*/x64/*" | head -1) && echo "dll_path=$DLL" >> $GITHUB_OUTPUT
 
       - name: Prepare installer files
         shell: bash
-        working-directory: .
         run: |
           mkdir -p installer_files
           cp native/target/x86_64-pc-windows-msvc/release/ruva-browser.exe installer_files/
-          cp "${{ steps.find_dll.outputs.dll_path }}" installer_files/
+          cp "$DLL" installer_files/
           cp native/icon.ico installer_files/
           cp LICENSE installer_files/
-
-      - name: Download WebView2 bootstrapper
-        shell: bash
-        working-directory: installer_files
-        run: |
-          curl -L -o MicrosoftEdgeWebview2Setup.exe "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+          curl -L -o installer_files/MicrosoftEdgeWebview2Setup.exe "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+          ls -la installer_files/
+        env:
+          DLL: ${{ steps.find_dll.outputs.dll_path }}
 
       - name: Install NSIS
         run: choco install nsis -y
 
       - name: Build NSIS installer
-        shell: bash
-        working-directory: .
+        shell: cmd
         run: |
-          NSIS_PATH=$(find "/c/Program Files" -name "makensis.exe" 2>/dev/null | head -1)
-          if [ -z "$NSIS_PATH" ]; then NSIS_PATH=$(find "/c/Program Files (x86)" -name "makensis.exe" 2>/dev/null | head -1); fi
-          echo "NSIS: $NSIS_PATH"
-          "$NSIS_PATH" packaging/installer.nsi
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: RuvaBrowser-Setup
-          path: RuvaBrowser-Setup.exe
-
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: RuvaBrowser-Setup.exe
-          draft: false
-          prerelease: false
+          "C:\Program Files (x86)\NSIS\makensis.exe" packaging\installer.nsi
