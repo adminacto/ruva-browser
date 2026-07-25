@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:transparent !important;color:#d1d5db;
+  min-height:100vh;overflow-y:auto;
+  -webkit-text-fill-color:#d1d5db;
+}
+#settingsOverlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.5);z-index:999999;
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:40px 0;overflow-y:auto;
+}
+#settingsPanel{
+  background:#1a1a1a;border-radius:16px;
+  padding:40px 60px 80px;width:100%;max-width:800px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+  position:relative;
+}
+.back-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  background:#333 !important;border:none;border-radius:8px;
+  padding:8px 16px;color:#9ca3af;cursor:pointer;font-size:13px;
+  transition:background .2s;margin-bottom:24px;
+}
+.back-btn:hover{background:#444 !important;color:#e5e7eb}
+h1{font-size:22px;font-weight:600;color:#e5e7eb;margin-bottom:28px}
+
+.section{margin-bottom:32px}
+.section-title{font-size:13px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;color:#9ca3af;margin-bottom:6px}
+.field input[type="text"],
+.field input[type="url"]{
+  width:100%;max-width:400px;
+  background:#262626 !important;border:1px solid #444 !important;border-radius:8px;
+  padding:8px 14px;color:#e5e7eb !important;font-size:13px;outline:none;
+  -webkit-appearance:none !important;
+  -webkit-text-fill-color:#e5e7eb !important;
+}
+.field input:focus{border-color:#666 !important}
+
+.engine-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.engine-btn{
+  background:#262626 !important;border:2px solid #333 !important;border-radius:10px;
+  padding:10px 18px;color:#9ca3af !important;font-size:13px;cursor:pointer;
+  transition:all .15s;-webkit-appearance:none !important;user-select:none;
+}
+.engine-btn:hover{border-color:#555 !important;color:#d1d5db !important}
+.engine-btn.active{border-color:#6366f1 !important;color:#e5e7eb !important;background:#2a2a3e !important}
+
+.file-label{
+  display:inline-flex;align-items:center;gap:8px;
+  background:#262626 !important;border:1px dashed #555 !important;border-radius:8px;
+  padding:10px 18px;color:#9ca3af !important;font-size:13px;cursor:pointer;
+  transition:all .15s;-webkit-appearance:none !important;
+}
+.file-label:hover{border-color:#777 !important;color:#d1d5db !important}
+input[type="file"]{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
+.file-path{font-size:11px;color:#6b7280;margin-top:6px;word-break:break-all;min-height:16px}
+
+.img-preview{
+  width:100%;max-width:400px;height:120px;
+  background:#262626 !important;border:1px solid #333 !important;border-radius:8px;
+  margin-top:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;
+}
+.img-preview img{width:100%;height:100%;object-fit:cover}
+.img-preview .placeholder{color:#6b7280;font-size:12px}
+
+.color-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.color-swatch{
+  width:36px;height:36px;border-radius:8px;border:2px solid transparent;
+  cursor:pointer;transition:all .15s;
+}
+.color-swatch:hover{transform:scale(1.1)}
+.color-swatch.active{border-color:#e5e7eb !important}
+.swatch-custom{
+  display:flex;align-items:center;justify-content:center;
+  background:#333;border:2px dashed #555;border-radius:8px;
+  width:36px;height:36px;cursor:pointer;font-size:16px;color:#6b7280;
+}
+.swatch-custom:hover{border-color:#777;color:#9ca3af}
+
+.toggle-row{
+  display:flex;align-items:center;justify-content:space-between;
+  max-width:400px;padding:10px 0;border-bottom:1px solid #262626;
+}
+.toggle-row label{font-size:13px;color:#d1d5db}
+.toggle{
+  width:40px;height:22px;background:#333;border-radius:11px;
+  position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;
+}
+.toggle.on{background:#6366f1}
+.toggle::after{
+  content:'';position:absolute;top:3px;left:3px;
+  width:16px;height:16px;background:#e5e7eb;border-radius:50%;
+  transition:transform .2s;
+}
+.toggle.on::after{transform:translateX(18px)}
+
+.btn{
+  background:#333 !important;border:1px solid #444 !important;border-radius:8px;
+  padding:10px 20px;color:#d1d5db !important;font-size:13px;cursor:pointer;
+  transition:background .2s;-webkit-appearance:none !important;
+}
+.btn:hover{background:#444 !important}
+.btn-danger{color:#f87171 !important;border-color:#7f1d1d !important}
+.btn-danger:hover{background:rgba(239,68,68,0.1) !important}
+.btn-row{display:flex;gap:10px;margin-top:16px}
+
+.toast{
+  position:fixed;bottom:30px;right:30px;
+  background:#262626 !important;border:1px solid #333 !important;border-radius:10px;
+  padding:12px 20px;color:#10b981 !important;font-size:13px;
+  opacity:0;transform:translateY(20px);
+  transition:all .3s;pointer-events:none;z-index:999;
+}
+.toast.show{opacity:1;transform:translateY(0)}
+
+.status{font-size:11px;color:#10b981;margin-top:4px;min-height:16px}
+</style>
+</head>
+<body>
+<div id="settingsOverlay">
+<div id="settingsPanel">
+
+<button class="back-btn" id="backBtn">&larr; Назад</button>
+<h1>Настройки</h1>
+
+<div class="section">
+  <div class="section-title">Поисковая система</div>
+  <div class="engine-grid" id="engineGrid">
+    <div class="engine-btn active" data-engine="duckduckgo">DuckDuckGo</div>
+    <div class="engine-btn" data-engine="google">Google</div>
+    <div class="engine-btn" data-engine="yandex">Яндекс</div>
+    <div class="engine-btn" data-engine="bing">Bing</div>
+    <div class="engine-btn" data-engine="brave">Brave</div>
+    <div class="engine-btn" data-engine="ecosia">Ecosia</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Домашняя страница</div>
+  <div class="field">
+    <label>URL домашней страницы</label>
+    <input type="url" id="homepage" placeholder="Оставьте пустым для NTP">
+  </div>
+  <div class="toggle-row">
+    <label>NTP при открытии новой вкладки</label>
+    <div class="toggle on" id="toggleNtp"></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Внешний вид</div>
+  <div class="field">
+    <label>Фоновый цвет</label>
+    <div class="color-row" id="bgColors">
+      <div class="color-swatch active" data-color="#1a1a1a" style="background:#1a1a1a"></div>
+      <div class="color-swatch" data-color="#0f172a" style="background:#0f172a"></div>
+      <div class="color-swatch" data-color="#18181b" style="background:#18181b"></div>
+      <div class="color-swatch" data-color="#1c1917" style="background:#1c1917"></div>
+      <div class="color-swatch" data-color="#1e1b4b" style="background:#1e1b4b"></div>
+      <div class="color-swatch" data-color="#0c0a09" style="background:#0c0a09"></div>
+      <div class="swatch-custom" id="customColor">+</div>
+    </div>
+  </div>
+  <div class="field">
+    <label>Фоновое изображение</label>
+    <label class="file-label" for="bgImageFile">
+      <span>&#128444;</span>
+      <span id="imgLabel">Выбрать изображение с устройства</span>
+      <input type="file" id="bgImageFile" accept="image/*">
+    </label>
+    <div class="file-path" id="imgFilePath"></div>
+    <div class="img-preview" id="imgPreview"><span class="placeholder">Превью изображения</span></div>
+  </div>
+  <div class="field">
+    <label>Фоновое видео</label>
+    <label class="file-label" for="bgVideoFile">
+      <span>&#127909;</span>
+      <span id="vidLabel">Выбрать видео с устройства</span>
+      <input type="file" id="bgVideoFile" accept="video/*">
+    </label>
+    <div class="file-path" id="vidFilePath"></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Панель вкладок</div>
+  <div class="toggle-row">
+    <label>Показывать панель вкладок</label>
+    <div class="toggle on" id="toggleTabs"></div>
+  </div>
+  <div class="toggle-row">
+    <label>Автопоказ при наведении</label>
+    <div class="toggle" id="toggleHover"></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Поведение</div>
+  <div class="toggle-row">
+    <label>Блокировать полноэкранный режим</label>
+    <div class="toggle on" id="toggleFullscreen"></div>
+  </div>
+  <div class="toggle-row">
+    <label>Загружать изображения</label>
+    <div class="toggle on" id="toggleImages"></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Начальный экран (NTP)</div>
+  <div class="toggle-row">
+    <label>Показывать часы</label>
+    <div class="toggle on" id="toggleNtpClock"></div>
+  </div>
+  <div class="toggle-row">
+    <label>24-часовой формат</label>
+    <div class="toggle on" id="toggleNtp24h"></div>
+  </div>
+  <div class="toggle-row">
+    <label>Показывать приветствие</label>
+    <div class="toggle on" id="toggleNtpGreeting"></div>
+  </div>
+  <div class="toggle-row">
+    <label>Показывать дату</label>
+    <div class="toggle on" id="toggleNtpDate"></div>
+  </div>
+  <div class="toggle-row">
+    <label>AI чат на начальном экране</label>
+    <div class="toggle on" id="toggleNtpAi"></div>
+  </div>
+  <div class="field" style="margin-top:12px">
+    <label>Цвет часов</label>
+    <div class="color-row">
+      <div class="color-swatch ntp-clock-color active" data-color="#e5e7eb" style="background:#e5e7eb"></div>
+      <div class="color-swatch ntp-clock-color" data-color="#ffffff" style="background:#ffffff"></div>
+      <div class="color-swatch ntp-clock-color" data-color="#6366f1" style="background:#6366f1"></div>
+      <div class="color-swatch ntp-clock-color" data-color="#f87171" style="background:#f87171"></div>
+      <div class="color-swatch ntp-clock-color" data-color="#34d399" style="background:#34d399"></div>
+      <div class="color-swatch ntp-clock-color" data-color="#fbbf24" style="background:#fbbf24"></div>
+    </div>
+  </div>
+  <div class="field">
+    <label>Цвет приветствия</label>
+    <div class="color-row">
+      <div class="color-swatch ntp-greeting-color active" data-color="#9ca3af" style="background:#9ca3af"></div>
+      <div class="color-swatch ntp-greeting-color" data-color="#e5e7eb" style="background:#e5e7eb"></div>
+      <div class="color-swatch ntp-greeting-color" data-color="#6366f1" style="background:#6366f1"></div>
+      <div class="color-swatch ntp-greeting-color" data-color="#f87171" style="background:#f87171"></div>
+      <div class="color-swatch ntp-greeting-color" data-color="#34d399" style="background:#34d399"></div>
+      <div class="color-swatch ntp-greeting-color" data-color="#fbbf24" style="background:#fbbf24"></div>
+    </div>
+  </div>
+  <div class="field">
+    <label>Цвет поисковой строки</label>
+    <div class="color-row">
+      <div class="color-swatch ntp-search-color active" data-color="#3b3b3b" style="background:#3b3b3b"></div>
+      <div class="color-swatch ntp-search-color" data-color="#262626" style="background:#262626"></div>
+      <div class="color-swatch ntp-search-color" data-color="#1e1b4b" style="background:#1e1b4b"></div>
+      <div class="color-swatch ntp-search-color" data-color="#1e293b" style="background:#1e293b"></div>
+      <div class="color-swatch ntp-search-color" data-color="#374151" style="background:#374151"></div>
+      <div class="color-swatch ntp-search-color" data-color="#4c1d95" style="background:#4c1d95"></div>
+    </div>
+  </div>
+  <div class="field">
+    <label>Быстрые ссылки</label>
+    <div id="quickLinksList"></div>
+    <button class="btn" id="addQuickLink" style="margin-top:8px">+ Добавить ссылку</button>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Данные</div>
+  <div class="field">
+    <label>Путь к данным</label>
+    <p style="font-size:12px;color:#6b7280;margin-top:4px">~/.ruva/</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-danger" id="clearData">Очистить все данные</button>
+    <button class="btn" id="exportData">Экспорт настроек</button>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">AI Ассистент</div>
+  <div class="field">
+    <label>API ключ OpenRouter</label>
+    <input type="password" id="aiApiKey" placeholder="sk-or-v1-..." style="margin-top:6px">
+    <p style="font-size:11px;color:#6b7280;margin-top:4px">Бесплатный ключ: <a href="#" style="color:#60a5fa" onclick="send('navigate',{url:'https://openrouter.ai/keys'});return false">openrouter.ai/keys</a></p>
+  </div>
+  <div class="field">
+    <label>Модель</label>
+    <select id="aiModel" style="margin-top:6px;width:100%;padding:10px;background:#1a1a1a;color:#fff;border:1px solid #333;border-radius:8px;font-size:13px">
+      <option value="openrouter/free">Auto (рекомендуется)</option>
+      <option value="nvidia/nemotron-3-nano-30b-a3b:free">Nemotron 30B (~1с)</option>
+      <option value="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free">Nemotron 30B Reasoning (~1с)</option>
+      <option value="google/gemma-4-26b-a4b-it:free">Gemma 4 26B (~1с)</option>
+      <option value="openai/gpt-oss-20b:free">GPT-OSS 20B</option>
+    </select>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">О браузере</div>
+  <p style="font-size:13px;color:#9ca3af">Ruva Browser v0.1.0</p>
+  <p style="font-size:12px;color:#6b7280;margin-top:4px">Написан на Rust + GTK + WebKitGTK</p>
+</div>
+
+<div class="toast" id="toast">Настройки сохранены</div>
+
+<script>
+var ipc = null;
+try { ipc = window.webkit.messageHandlers.ipc; } catch(e) {}
+
+function send(cmd, data) {
+  try {
+    var msg = Object.assign({cmd: cmd}, data || {});
+    ipc.postMessage(JSON.stringify(msg));
+  } catch(e) {}
+}
+
+var currentBgImage = '';
+var currentBgVideo = '';
+var toastTimer = null;
+var ntpSettings = {
+  clock_color:'#e5e7eb',greeting_color:'#9ca3af',search_color:'#3b3b3b',
+  clock_format_24h:true,show_clock:true,show_greeting:true,show_date:true,show_ai_chat:true,
+  quick_links:[
+    {name:'YouTube',url:'https://youtube.com',icon:'\u{1f3ac}'},
+    {name:'GitHub',url:'https://github.com',icon:'\u{1f4bb}'},
+    {name:'Reddit',url:'https://reddit.com',icon:'\u{1f916}'},
+    {name:'X',url:'https://x.com',icon:'\u{1f426}'},
+    {name:'Wikipedia',url:'https://wikipedia.org',icon:'\u{1f4d6}'},
+    {name:'\u{041f}\u{0435}\u{0440}\u{0435}\u{0432}\u{043e}\u{0434}\u{0447}\u{0438}\u{043a}',url:'https://translate.google.com',icon:'\u{1f310}'},
+    {name:'ChatGPT',url:'https://chatgpt.com',icon:'\u{1f916}'},
+    {name:'DuckDuckGo',url:'https://duckduckgo.com',icon:'\u{1f984}'}
+  ]
+};
+
+function showToast(text) {
+  var t = document.getElementById('toast');
+  t.textContent = text || '\u2714 \u{0421}\u{043e}\u{0445}\u{0440}\u{0430}\u{043d}\u{0435}\u{043d}\u{043e}';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { t.classList.remove('show'); }, 1800);
+}
+
+function collectNtp() {
+  var cc=document.querySelector('.ntp-clock-color.active');
+  var gc=document.querySelector('.ntp-greeting-color.active');
+  var sc=document.querySelector('.ntp-search-color.active');
+  ntpSettings.clock_color=cc?cc.getAttribute('data-color'):'#e5e7eb';
+  ntpSettings.greeting_color=gc?gc.getAttribute('data-color'):'#9ca3af';
+  ntpSettings.search_color=sc?sc.getAttribute('data-color'):'#3b3b3b';
+  ntpSettings.clock_format_24h=document.getElementById('toggleNtp24h').classList.contains('on');
+  ntpSettings.show_clock=document.getElementById('toggleNtpClock').classList.contains('on');
+  ntpSettings.show_greeting=document.getElementById('toggleNtpGreeting').classList.contains('on');
+  ntpSettings.show_date=document.getElementById('toggleNtpDate').classList.contains('on');
+  ntpSettings.show_ai_chat=document.getElementById('toggleNtpAi').classList.contains('on');
+  return ntpSettings;
+}
+
+function collectSettings() {
+  var active = document.querySelector('.engine-btn.active');
+  return {
+    search_engine: active ? active.getAttribute('data-engine') : 'duckduckgo',
+    homepage: document.getElementById('homepage').value.trim(),
+    new_tab_show_ntp: document.getElementById('toggleNtp').classList.contains('on'),
+    bg_color: (document.querySelector('#bgColors .color-swatch.active') || {}).getAttribute('data-color') || '#1a1a1a',
+    bg_image: currentBgImage,
+    bg_video: currentBgVideo,
+    show_tab_bar: document.getElementById('toggleTabs').classList.contains('on'),
+    auto_show_tab_bar: document.getElementById('toggleHover').classList.contains('on'),
+    block_fullscreen: document.getElementById('toggleFullscreen').classList.contains('on'),
+    load_images: document.getElementById('toggleImages').classList.contains('on'),
+    ai_api_key: document.getElementById('aiApiKey').value.trim(),
+    ai_model: document.getElementById('aiModel').value,
+    ntp: collectNtp(),
+  };
+}
+
+function saveSettings() {
+  send('save_settings', collectSettings());
+  showToast();
+}
+
+function renderQuickLinks() {
+  var list = document.getElementById('quickLinksList');
+  if (!list) return;
+  list.innerHTML = '';
+  ntpSettings.quick_links.forEach(function(l, i) {
+    var row = document.createElement('div');
+    row.style.cssText='display:flex;gap:6px;align-items:center;margin-bottom:6px;';
+    row.innerHTML =
+      '<input type="text" value="'+l.icon+'" style="width:40px;background:#262626;border:1px solid #333;border-radius:6px;padding:5px;color:#e5e7eb;font-size:13px;text-align:center;-webkit-appearance:none" data-idx="'+i+'" data-field="icon">' +
+      '<input type="text" value="'+l.name+'" style="width:100px;background:#262626;border:1px solid #333;border-radius:6px;padding:5px 8px;color:#e5e7eb;font-size:13px;-webkit-appearance:none" data-idx="'+i+'" data-field="name">' +
+      '<input type="text" value="'+l.url+'" style="flex:1;background:#262626;border:1px solid #333;border-radius:6px;padding:5px 8px;color:#e5e7eb;font-size:13px;-webkit-appearance:none" data-idx="'+i+'" data-field="url">' +
+      '<button class="btn btn-danger" data-idx="'+i+'" style="padding:4px 8px;font-size:11px">\u{2715}</button>';
+    list.appendChild(row);
+  });
+  list.querySelectorAll('input').forEach(function(inp) {
+    inp.addEventListener('change', function() {
+      var idx=parseInt(this.getAttribute('data-idx'));
+      var field=this.getAttribute('data-field');
+      ntpSettings.quick_links[idx][field]=this.value;
+      saveSettings();
+    });
+  });
+  list.querySelectorAll('.btn-danger').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var idx=parseInt(this.getAttribute('data-idx'));
+      ntpSettings.quick_links.splice(idx,1);
+      renderQuickLinks();
+      saveSettings();
+    });
+  });
+}
+
+document.getElementById('backBtn').addEventListener('click', function() {
+  saveSettings();
+  send('navigate', {url: ''});
+});
+
+document.querySelectorAll('.engine-btn').forEach(function(el) {
+  el.addEventListener('click', function() {
+    document.querySelectorAll('.engine-btn').forEach(function(b) { b.classList.remove('active'); });
+    this.classList.add('active');
+    saveSettings();
+  });
+});
+
+document.querySelectorAll('.toggle').forEach(function(el) {
+  el.addEventListener('click', function() {
+    this.classList.toggle('on');
+    saveSettings();
+  });
+});
+
+document.getElementById('homepage').addEventListener('change', saveSettings);
+document.getElementById('aiApiKey').addEventListener('change', saveSettings);
+document.getElementById('aiModel').addEventListener('change', saveSettings);
+
+document.querySelectorAll('#bgColors .color-swatch').forEach(function(el) {
+  el.addEventListener('click', function() {
+    document.querySelectorAll('#bgColors .color-swatch').forEach(function(s) { s.classList.remove('active'); });
+    this.classList.add('active');
+    saveSettings();
+  });
+});
+
+document.querySelectorAll('.ntp-clock-color').forEach(function(el) {
+  el.addEventListener('click', function() {
+    document.querySelectorAll('.ntp-clock-color').forEach(function(s) { s.classList.remove('active'); });
+    this.classList.add('active');
+    saveSettings();
+  });
+});
+document.querySelectorAll('.ntp-greeting-color').forEach(function(el) {
+  el.addEventListener('click', function() {
+    document.querySelectorAll('.ntp-greeting-color').forEach(function(s) { s.classList.remove('active'); });
+    this.classList.add('active');
+    saveSettings();
+  });
+});
+document.querySelectorAll('.ntp-search-color').forEach(function(el) {
+  el.addEventListener('click', function() {
+    document.querySelectorAll('.ntp-search-color').forEach(function(s) { s.classList.remove('active'); });
+    this.classList.add('active');
+    saveSettings();
+  });
+});
+
+document.getElementById('customColor').addEventListener('click', function() {
+  var c = prompt('CSS цвет (например: #2a1a3e):');
+  if (c) {
+    document.querySelectorAll('#bgColors .color-swatch').forEach(function(s) { s.classList.remove('active'); });
+    var el = document.createElement('div');
+    el.className = 'color-swatch active';
+    el.style.background = c;
+    el.setAttribute('data-color', c);
+    el.addEventListener('click', function() {
+      document.querySelectorAll('#bgColors .color-swatch').forEach(function(s) { s.classList.remove('active'); });
+      this.classList.add('active');
+      saveSettings();
+    });
+    this.parentNode.insertBefore(el, this);
+    saveSettings();
+  }
+});
+
+document.getElementById('bgImageFile').addEventListener('change', function() {
+  var file = this.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    currentBgImage = e.target.result;
+    document.getElementById('imgFilePath').textContent = file.name;
+    document.getElementById('imgLabel').textContent = file.name;
+    document.getElementById('imgPreview').innerHTML = '<img src="' + currentBgImage + '">';
+    saveSettings();
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('bgVideoFile').addEventListener('change', function() {
+  var file = this.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    currentBgVideo = e.target.result;
+    document.getElementById('vidFilePath').textContent = file.name;
+    document.getElementById('vidLabel').textContent = file.name;
+    saveSettings();
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('addQuickLink').addEventListener('click', function() {
+  var name = prompt('Название:');
+  if (!name) return;
+  var url = prompt('URL:');
+  if (!url) return;
+  var icon = prompt('Иконка (эмодзи):', '\u{1f310}');
+  if (!icon) icon = '\u{1f310}';
+  ntpSettings.quick_links.push({name:name,url:url,icon:icon});
+  renderQuickLinks();
+  saveSettings();
+});
+
+document.getElementById('clearData').addEventListener('click', function() {
+  if (confirm('Удалить все куки и данные?')) {
+    send('clear_data');
+    showToast('\u{0414}\u{0430}\u{043d}\u{043d}\u{044b}\u{0435} очищены');
+  }
+});
+
+document.getElementById('exportData').addEventListener('click', function() {
+  var s = collectSettings();
+  var blob = new Blob([JSON.stringify(s, null, 2)], {type: 'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ruva-settings.json';
+  a.click();
+});
+
+function setNtpSwatch(className, color) {
+  document.querySelectorAll('.'+className).forEach(function(sw) {
+    sw.classList.toggle('active', sw.getAttribute('data-color') === color);
+  });
+}
+
+function applySettings(s) {
+  if (s.search_engine) {
+    document.querySelectorAll('.engine-btn').forEach(function(b) {
+      b.classList.toggle('active', b.getAttribute('data-engine') === s.search_engine);
+    });
+  }
+  if (s.homepage !== undefined) {
+    document.getElementById('homepage').value = (s.homepage === 'ruva://newtab' || s.homepage === '') ? '' : s.homepage;
+  }
+  setToggle('toggleNtp', s.new_tab_show_ntp !== false);
+  setToggle('toggleTabs', s.show_tab_bar !== false);
+  setToggle('toggleHover', s.auto_show_tab_bar === true);
+  setToggle('toggleFullscreen', s.block_fullscreen !== false);
+  setToggle('toggleImages', s.load_images !== false);
+
+  if (s.bg_image) {
+    currentBgImage = s.bg_image;
+    document.getElementById('imgPreview').innerHTML = '<img src="' + s.bg_image + '">';
+    document.getElementById('imgLabel').textContent = '\u{2705} Изображение установлено';
+  }
+  if (s.bg_video) {
+    currentBgVideo = s.bg_video;
+    document.getElementById('vidLabel').textContent = '\u{2705} Видео установлено';
+  }
+  if (s.bg_color) {
+    document.querySelectorAll('#bgColors .color-swatch').forEach(function(sw) {
+      sw.classList.toggle('active', sw.getAttribute('data-color') === s.bg_color);
+    });
+  }
+
+  if (s.ai_api_key !== undefined) {
+    document.getElementById('aiApiKey').value = s.ai_api_key || '';
+  }
+  if (s.ai_model) {
+    document.getElementById('aiModel').value = s.ai_model;
+  }
+
+  if (s.ntp) {
+    ntpSettings = Object.assign(ntpSettings, s.ntp);
+    setToggle('toggleNtpClock', s.ntp.show_clock !== false);
+    setToggle('toggleNtp24h', s.ntp.clock_format_24h !== false);
+    setToggle('toggleNtpGreeting', s.ntp.show_greeting !== false);
+    setToggle('toggleNtpDate', s.ntp.show_date !== false);
+    setToggle('toggleNtpAi', s.ntp.show_ai_chat !== false);
+    if (s.ntp.clock_color) setNtpSwatch('ntp-clock-color', s.ntp.clock_color);
+    if (s.ntp.greeting_color) setNtpSwatch('ntp-greeting-color', s.ntp.greeting_color);
+    if (s.ntp.search_color) setNtpSwatch('ntp-search-color', s.ntp.search_color);
+    if (s.ntp.quick_links) ntpSettings.quick_links = s.ntp.quick_links;
+    renderQuickLinks();
+  }
+}
+
+function setToggle(id, on) {
+  var el = document.getElementById(id);
+  if (el) { if (on) el.classList.add('on'); else el.classList.remove('on'); }
+}
+
+try {
+  if (window.__SETTINGS__) applySettings(window.__SETTINGS__);
+} catch(e) {}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    window.ipc.postMessage(JSON.stringify({cmd:'navigate',url:''}));
+  }
+});
+
+document.getElementById('settingsOverlay').addEventListener('click', function(e) {
+  if (e.target === this) {
+    window.ipc.postMessage(JSON.stringify({cmd:'navigate',url:''}));
+  }
+});
+</script>
+
+</div>
+</div>
+</body>
+</html>

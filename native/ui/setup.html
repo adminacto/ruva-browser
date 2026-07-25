@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d0d0d;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
+.wizard{max-width:480px;width:100%;text-align:center}
+.wizard h1{font-size:28px;font-weight:700;margin-bottom:6px;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.wizard .subtitle{font-size:14px;color:#6b7280;margin-bottom:36px}
+.step{display:none;animation:fadeIn .3s ease}
+.step.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.step-title{font-size:18px;font-weight:600;margin-bottom:20px;color:#f3f4f6}
+.step-desc{font-size:13px;color:#9ca3af;margin-bottom:20px}
+.engine-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:24px}
+.engine-btn{background:#1a1a1a;border:2px solid #333;border-radius:12px;padding:16px 10px;cursor:pointer;transition:all .2s;text-align:center}
+.engine-btn:hover{border-color:#555;background:#222}
+.engine-btn.active{border-color:#60a5fa;background:#1e293b}
+.engine-btn .icon{font-size:24px;display:block;margin-bottom:6px}
+.engine-btn .name{font-size:12px;color:#d1d5db}
+.field{margin-bottom:20px;text-align:left}
+.field label{display:block;font-size:13px;color:#9ca3af;margin-bottom:6px}
+.field input{width:100%;padding:12px 14px;background:#1a1a1a;border:1px solid #333;border-radius:10px;color:#e5e7eb;font-size:14px;outline:none;transition:border-color .2s}
+.field input:focus{border-color:#60a5fa}
+.field .hint{font-size:11px;color:#6b7280;margin-top:6px}
+.field .hint a{color:#60a5fa;text-decoration:none}
+.theme-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:24px}
+.theme-swatch{width:100%;aspect-ratio:1;border-radius:10px;cursor:pointer;border:3px solid transparent;transition:all .2s}
+.theme-swatch:hover{transform:scale(1.1)}
+.theme-swatch.active{border-color:#fff;transform:scale(1.15)}
+.nav-row{display:flex;gap:10px;margin-top:24px}
+.btn{flex:1;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-primary{background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+.btn-skip{background:#1a1a1a;color:#9ca3af;border:1px solid #333}
+.btn-skip:hover{background:#222;color:#e5e7eb}
+.progress{display:flex;justify-content:center;gap:8px;margin-bottom:32px}
+.dot{width:8px;height:8px;border-radius:50%;background:#333;transition:all .3s}
+.dot.active{background:#60a5fa;width:24px;border-radius:4px}
+.skip-hint{font-size:11px;color:#555;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wizard">
+  <h1>Добро пожаловать в Ruva</h1>
+  <p class="subtitle">Настроим браузер за 30 секунд</p>
+
+  <div class="progress">
+    <div class="dot active" id="dot0"></div>
+    <div class="dot" id="dot1"></div>
+    <div class="dot" id="dot2"></div>
+    <div class="dot" id="dot3"></div>
+  </div>
+
+  <!-- Step 0: Search Engine -->
+  <div class="step active" id="step0">
+    <div class="step-title">Поисковая система</div>
+    <div class="step-desc">Какой поисковик использовать по умолчанию?</div>
+    <div class="engine-grid">
+      <div class="engine-btn active" data-engine="duckduckgo">
+        <span class="icon">🦆</span><span class="name">DuckDuckGo</span>
+      </div>
+      <div class="engine-btn" data-engine="google">
+        <span class="icon">🔍</span><span class="name">Google</span>
+      </div>
+      <div class="engine-btn" data-engine="yandex">
+        <span class="icon">Я</span><span class="name">Яндекс</span>
+      </div>
+      <div class="engine-btn" data-engine="bing">
+        <span class="icon">🅱️</span><span class="name">Bing</span>
+      </div>
+      <div class="engine-btn" data-engine="brave">
+        <span class="icon">🦁</span><span class="name">Brave</span>
+      </div>
+      <div class="engine-btn" data-engine="ecosia">
+        <span class="icon">🌿</span><span class="name">Ecosia</span>
+      </div>
+    </div>
+    <div class="nav-row">
+      <button class="btn btn-skip" onclick="skipAll()">Пропустить всё</button>
+      <button class="btn btn-primary" onclick="nextStep()">Далее</button>
+    </div>
+  </div>
+
+  <!-- Step 1: Homepage -->
+  <div class="step" id="step1">
+    <div class="step-title">Домашняя страница</div>
+    <div class="step-desc">Что открывать при запуске и на новой вкладке?</div>
+    <div class="field">
+      <label>URL адрес</label>
+      <input type="text" id="homepage" placeholder="Оставить пусто = стартовая страница">
+    </div>
+    <div class="nav-row">
+      <button class="btn btn-skip" onclick="skipAll()">Пропустить всё</button>
+      <button class="btn btn-primary" onclick="nextStep()">Далее</button>
+    </div>
+  </div>
+
+  <!-- Step 2: AI -->
+  <div class="step" id="step2">
+    <div class="step-title">AI Ассистент</div>
+    <div class="step-desc">Бесплатный ИИ-помощник на новой вкладке. Ключ уже настроен!</div>
+    <div style="background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:20px;margin-bottom:20px">
+      <div style="font-size:14px;color:#60a5fa;margin-bottom:8px">OpenRouter API</div>
+      <div style="font-size:12px;color:#9ca3af">Ключ предустановлен. AI чат работает сразу.</div>
+    </div>
+    <div class="nav-row">
+      <button class="btn btn-skip" onclick="skipAll()">Пропустить всё</button>
+      <button class="btn btn-primary" onclick="nextStep()">Далее</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Theme -->
+  <div class="step" id="step3">
+    <div class="step-title">Тема оформления</div>
+    <div class="step-desc">Цвет фона стартовой страницы</div>
+    <div class="theme-grid">
+      <div class="theme-swatch active" style="background:#1a1a1a" data-color="#1a1a1a"></div>
+      <div class="theme-swatch" style="background:#0f172a" data-color="#0f172a"></div>
+      <div class="theme-swatch" style="background:#1e1b4b" data-color="#1e1b4b"></div>
+      <div class="theme-swatch" style="background:#0c0a09" data-color="#0c0a09"></div>
+      <div class="theme-swatch" style="background:#f5f5f4" data-color="#f5f5f4"></div>
+      <div class="theme-swatch" style="background:#18181b" data-color="#18181b"></div>
+    </div>
+    <div class="nav-row">
+      <button class="btn btn-skip" onclick="skipAll()">Пропустить всё</button>
+      <button class="btn btn-primary" onclick="finish()">Готово</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var currentStep = 0;
+var selectedEngine = 'duckduckgo';
+var selectedColor = '#1a1a1a';
+
+function openLink(url) {
+  try {
+    window.webkit.messageHandlers.ipc.postMessage(JSON.stringify({cmd:'navigate',url:url}));
+  } catch(e) {}
+}
+
+document.querySelectorAll('.engine-btn').forEach(function(b) {
+  b.addEventListener('click', function() {
+    document.querySelectorAll('.engine-btn').forEach(function(x) { x.classList.remove('active'); });
+    this.classList.add('active');
+    selectedEngine = this.getAttribute('data-engine');
+  });
+});
+
+document.querySelectorAll('.theme-swatch').forEach(function(s) {
+  s.addEventListener('click', function() {
+    document.querySelectorAll('.theme-swatch').forEach(function(x) { x.classList.remove('active'); });
+    this.classList.add('active');
+    selectedColor = this.getAttribute('data-color');
+  });
+});
+
+function updateProgress() {
+  for (var i = 0; i < 4; i++) {
+    var dot = document.getElementById('dot' + i);
+    dot.classList.toggle('active', i <= currentStep);
+  }
+}
+
+function showStep(idx) {
+  document.querySelectorAll('.step').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById('step' + idx).classList.add('active');
+  updateProgress();
+}
+
+function nextStep() {
+  currentStep++;
+  if (currentStep > 3) currentStep = 3;
+  showStep(currentStep);
+}
+
+function save(data) {
+  try {
+    var msg = Object.assign({cmd: 'save_settings'}, data);
+    window.webkit.messageHandlers.ipc.postMessage(JSON.stringify(msg));
+  } catch(e) {}
+}
+
+function finish() {
+  var homepage = document.getElementById('homepage').value.trim();
+
+  save({
+    search_engine: selectedEngine,
+    homepage: homepage || 'ruva://newtab',
+    bg_color: selectedColor,
+    ai_model: 'openrouter/free',
+    first_run: false,
+    new_tab_show_ntp: true,
+    show_tab_bar: true,
+    block_fullscreen: true,
+    load_images: true,
+  });
+
+  setTimeout(function() {
+    try {
+      window.webkit.messageHandlers.ipc.postMessage(JSON.stringify({cmd:'navigate',url:''}));
+    } catch(e) {}
+  }, 200);
+}
+
+function skipAll() {
+  save({
+    search_engine: 'duckduckgo',
+    homepage: 'ruva://newtab',
+    bg_color: '#1a1a1a',
+    ai_model: 'openrouter/free',
+    first_run: false,
+    new_tab_show_ntp: true,
+    show_tab_bar: true,
+    block_fullscreen: true,
+    load_images: true,
+  });
+
+  setTimeout(function() {
+    try {
+      window.webkit.messageHandlers.ipc.postMessage(JSON.stringify({cmd:'navigate',url:''}));
+    } catch(e) {}
+  }, 200);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+name: Build Windows Installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Disable autocrlf
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+        with:
+          set-safe-directory: true
+
+      - name: Normalize line endings
+        shell: bash
+        run: |
+          if grep -rPl '\r$' native/src/; then
+            echo "CRLF detected - fixing..."
+            find native/src/ -name '*.rs' -exec sed -i 's/\r$//' {} +
+          else
+            echo "No CRLF found - files are clean."
+          fi
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            native/target
+          key: windows-webview2-${{ hashFiles('native/Cargo.lock') }}
+
+      - name: Build release
+        run: cargo build --release --target x86_64-pc-windows-msvc
+        working-directory: native
+
+      - name: Download WebView2 bootstrapper
+        shell: bash
+        run: |
+          # Tiny (~2 MB) Evergreen bootstrapper. The installer runs it only if
+          # the WebView2 runtime is missing (it ships with Windows 10/11).
+          curl -L -o MicrosoftEdgeWebView2Setup.exe "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+          ls -la MicrosoftEdgeWebView2Setup.exe
+
+      - name: Prepare installer files
+        shell: bash
+        run: |
+          mkdir -p installer_files
+          cp native/target/x86_64-pc-windows-msvc/release/ruva-browser.exe installer_files/
+          cp native/icon.ico installer_files/
+          cp LICENSE installer_files/
+          cp MicrosoftEdgeWebView2Setup.exe installer_files/
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Build NSIS installer
+        shell: bash
+        run: |
+          cp -r installer_files packaging/
+          NSIS_PATH="/c/Program Files (x86)/NSIS/makensis.exe"
+          "$NSIS_PATH" packaging/installer.nsi
+          ls -la packaging/RuvaBrowser-Setup.exe
+          mv packaging/RuvaBrowser-Setup.exe .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RuvaBrowser-Setup
+          path: RuvaBrowser-Setup.exe
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: RuvaBrowser-Setup.exe
+          draft: false
+          prerelease: false
