@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;user-select:none}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:#17171c;color:#c9c9d1;
+  display:flex;flex-direction:column;
+}
+/* ---- tab strip ---- */
+#tabstrip{
+  height:36px;display:flex;align-items:flex-end;gap:2px;
+  padding:5px 8px 0;background:#17171c;flex-shrink:0;
+  overflow:hidden;
+}
+.tab{
+  display:flex;align-items:center;gap:8px;
+  height:31px;min-width:0;max-width:220px;flex:1 1 180px;
+  padding:0 10px;border-radius:8px 8px 0 0;
+  background:transparent;color:#8b8b96;
+  font-size:12px;cursor:pointer;position:relative;
+  transition:background .15s,color .15s;
+  white-space:nowrap;
+}
+.tab:hover{background:#212127}
+.tab.active{background:#26262e;color:#e7e7ec}
+.tab-title{flex:1;overflow:hidden;text-overflow:ellipsis;line-height:31px}
+.tab-close{
+  width:18px;height:18px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;line-height:1;color:#8b8b96;
+  transition:background .15s,color .15s;
+}
+.tab-close:hover{background:#3d3d47;color:#fff}
+.spinner{
+  width:12px;height:12px;flex-shrink:0;
+  border:2px solid #3d3d47;border-top-color:#6366f1;border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+.tab-dot{width:6px;height:6px;border-radius:50%;background:#4a4a55;flex-shrink:0}
+.tab.active .tab-dot{background:#6366f1}
+@keyframes spin{to{transform:rotate(360deg)}}
+#newtab-btn{
+  width:28px;height:28px;flex-shrink:0;margin-bottom:2px;margin-left:4px;
+  border:none;background:transparent;color:#8b8b96;
+  border-radius:8px;font-size:18px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s;
+}
+#newtab-btn:hover{background:#26262e;color:#e7e7ec}
+/* ---- toolbar ---- */
+#toolbar{
+  height:44px;display:flex;align-items:center;gap:6px;
+  padding:0 10px;background:#1f1f26;flex-shrink:0;
+  border-bottom:1px solid #101014;
+}
+.nav-btn{
+  width:32px;height:32px;flex-shrink:0;
+  border:none;background:transparent;color:#a5a5b0;
+  border-radius:8px;font-size:16px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s;
+}
+.nav-btn:hover{background:#2c2c35;color:#e7e7ec}
+.nav-btn:active{background:#34343e}
+#urlwrap{
+  flex:1;display:flex;align-items:center;gap:8px;
+  height:32px;background:#141419;border:1px solid #2c2c35;
+  border-radius:16px;padding:0 14px;min-width:0;
+  transition:border-color .15s,box-shadow .15s;
+}
+#urlwrap:focus-within{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+#lock{font-size:11px;color:#5b5b66;flex-shrink:0}
+#url{
+  flex:1;background:transparent;border:none;outline:none;
+  color:#e7e7ec;font-size:13px;min-width:0;
+  font-family:inherit;
+}
+#url::placeholder{color:#55555f}
+</style>
+</head>
+<body>
+<div id="tabstrip">
+  <div id="tabs" style="display:flex;align-items:flex-end;gap:2px;flex:1;min-width:0;overflow:hidden"></div>
+  <button id="newtab-btn" title="Новая вкладка (Ctrl+T)">+</button>
+</div>
+<div id="toolbar">
+  <button class="nav-btn" id="back" title="Назад">&#8592;</button>
+  <button class="nav-btn" id="forward" title="Вперёд">&#8594;</button>
+  <button class="nav-btn" id="reload" title="Обновить">&#10227;</button>
+  <button class="nav-btn" id="home" title="Домой">&#8962;</button>
+  <div id="urlwrap">
+    <span id="lock">&#128274;</span>
+    <input id="url" type="text" placeholder="Поиск или адрес..." spellcheck="false" autocomplete="off">
+  </div>
+  <button class="nav-btn" id="history" title="История (Ctrl+H)">&#128337;</button>
+  <button class="nav-btn" id="settings" title="Настройки">&#9881;</button>
+</div>
+<script>
+function send(o){try{window.ipc.postMessage(JSON.stringify(o))}catch(e){}}
+
+var state={tabs:[],url:'',showTabs:true};
+var urlFocused=false;
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function render(){
+  document.getElementById('tabstrip').style.display=state.showTabs?'flex':'none';
+  var c=document.getElementById('tabs');
+  c.innerHTML='';
+  state.tabs.forEach(function(t){
+    var el=document.createElement('div');
+    el.className='tab'+(t.active?' active':'');
+    el.title=t.title;
+    el.innerHTML=(t.loading?'<div class="spinner"></div>':'<div class="tab-dot"></div>')+
+      '<span class="tab-title">'+esc(t.title)+'</span>'+
+      '<span class="tab-close" title="Закрыть">&times;</span>';
+    el.addEventListener('mousedown',function(e){
+      if(e.button===1){e.preventDefault();send({cmd:'close_tab',tab_id:t.id});}
+    });
+    el.addEventListener('click',function(e){
+      if(e.target.classList.contains('tab-close')){send({cmd:'close_tab',tab_id:t.id});}
+      else{send({cmd:'switch_tab',tab_id:t.id});}
+    });
+    c.appendChild(el);
+  });
+  if(!urlFocused){
+    document.getElementById('url').value=state.url||'';
+  }
+  document.getElementById('lock').innerHTML=(state.url&&state.url.indexOf('https://')===0)?'&#128274;':'&#127760;';
+}
+
+window.__ruvaUpdate=function(s){state=s;render()};
+window.__ruvaFocusUrl=function(){
+  var u=document.getElementById('url');
+  u.focus();u.select();
+};
+
+var u=document.getElementById('url');
+u.addEventListener('focus',function(){urlFocused=true;u.select()});
+u.addEventListener('blur',function(){urlFocused=false;u.value=state.url||''});
+u.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229){
+    var v=u.value.trim();
+    if(v){send({cmd:'navigate',url:v});u.blur();}
+  }
+  if(e.key==='Escape'){u.value=state.url||'';u.blur();}
+});
+
+document.getElementById('back').addEventListener('click',function(){send({cmd:'back'})});
+document.getElementById('forward').addEventListener('click',function(){send({cmd:'forward'})});
+document.getElementById('reload').addEventListener('click',function(){send({cmd:'reload'})});
+document.getElementById('home').addEventListener('click',function(){send({cmd:'navigate',url:''})});
+document.getElementById('settings').addEventListener('click',function(){send({cmd:'open_settings'})});
+document.getElementById('history').addEventListener('click',function(){send({cmd:'open_history'})});
+document.getElementById('newtab-btn').addEventListener('click',function(){send({cmd:'new_tab'})});
+
+document.addEventListener('keydown',function(e){
+  var k=e.key.toLowerCase();
+  if(e.ctrlKey&&!e.shiftKey&&!e.altKey){
+    if(k==='t'){e.preventDefault();send({cmd:'new_tab'});}
+    else if(k==='w'){e.preventDefault();var a=state.tabs.find(function(t){return t.active});if(a)send({cmd:'close_tab',tab_id:a.id});}
+    else if(k==='l'){e.preventDefault();window.__ruvaFocusUrl();}
+    else if(k==='h'){e.preventDefault();send({cmd:'open_history'});}
+    else if(k==='r'){e.preventDefault();send({cmd:'reload'});}
+  }
+});
+</script>
+</body>
+</html>

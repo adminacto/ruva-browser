@@ -115,19 +115,15 @@ body{
     <div class="ai-loading" id="aiLoading">&#8987; Думаю...</div>
     <div class="ai-response" id="aiResponse"></div>
   </div>
-  <div class="hints">
-    <span><kbd>Ctrl+T</kbd> вкладка</span>
-    <span><kbd>Ctrl+W</kbd> закрыть</span>
-    <span><kbd>Ctrl+L</kbd> адрес</span>
-    <span><kbd>Ctrl+R</kbd> обновить</span>
-  </div>
 </div>
 <script>
 var NTP=window.__NTP__||{};
 var SEARCH_URL=window.__SEARCH_URL__||'https://duckduckgo.com/?q=';
 
 function sendIpc(cmd,data){
-  try{var m=Object.assign({cmd:cmd},data||{});window.webkit.messageHandlers.ipc.postMessage(JSON.stringify(m))}catch(e){}
+  var m=JSON.stringify(Object.assign({cmd:cmd},data||{}));
+  try{window.ipc.postMessage(m);return}catch(e){}
+  try{window.webkit.messageHandlers.ipc.postMessage(m)}catch(e){}
 }
 
 function updateClock(){

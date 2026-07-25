@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:#141419;color:#d1d5db;min-height:100vh;
+}
+.container{max-width:760px;margin:0 auto;padding:40px 24px}
+h1{font-size:22px;font-weight:600;color:#e7e7ec;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.top{display:flex;gap:10px;margin-bottom:24px}
+#search{
+  flex:1;height:40px;background:#1e1e26;border:1px solid #2c2c35;border-radius:10px;
+  padding:0 16px;color:#e7e7ec;font-size:13px;outline:none;
+}
+#search:focus{border-color:#6366f1}
+#search::placeholder{color:#55555f}
+.btn{
+  background:#1e1e26;border:1px solid #2c2c35;border-radius:10px;
+  padding:0 16px;color:#f87171;font-size:13px;cursor:pointer;height:40px;
+  transition:background .15s;
+}
+.btn:hover{background:#2a1518}
+.item{
+  display:flex;align-items:center;gap:14px;
+  padding:12px 14px;border-radius:10px;cursor:pointer;
+  transition:background .15s;
+}
+.item:hover{background:#1e1e26}
+.item .time{font-size:11px;color:#55555f;flex-shrink:0;width:88px}
+.item .info{flex:1;min-width:0}
+.item .title{font-size:13px;color:#e7e7ec;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .url{font-size:11px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.empty{text-align:center;color:#55555f;font-size:13px;padding:60px 0}
+.day{font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin:22px 0 8px;padding:0 14px}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>&#128337; История</h1>
+  <div class="top">
+    <input id="search" type="text" placeholder="Поиск по истории..." spellcheck="false">
+    <button class="btn" id="clear">Очистить историю</button>
+  </div>
+  <div id="list"></div>
+</div>
+<script>
+var HISTORY=__HISTORY_JSON__;
+function send(o){try{window.ipc.postMessage(JSON.stringify(o))}catch(e){}}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function fmtTime(t){
+  var d=new Date(t*1000);
+  return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+}
+function fmtDay(t){
+  var d=new Date(t*1000),now=new Date();
+  var today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  var day=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  var diff=(today-day)/86400000;
+  if(diff===0)return 'Сегодня';
+  if(diff===1)return 'Вчера';
+  var months=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  return d.getDate()+' '+months[d.getMonth()]+' '+d.getFullYear();
+}
+
+function render(filter){
+  var list=document.getElementById('list');
+  list.innerHTML='';
+  var items=HISTORY.filter(function(h){
+    if(!filter)return true;
+    var f=filter.toLowerCase();
+    return (h.title||'').toLowerCase().indexOf(f)>=0||(h.url||'').toLowerCase().indexOf(f)>=0;
+  });
+  if(!items.length){list.innerHTML='<div class="empty">История пуста</div>';return;}
+  var lastDay='';
+  items.forEach(function(h){
+    var day=fmtDay(h.time);
+    if(day!==lastDay){
+      lastDay=day;
+      var d=document.createElement('div');
+      d.className='day';d.textContent=day;
+      list.appendChild(d);
+    }
+    var el=document.createElement('div');
+    el.className='item';
+    el.innerHTML='<span class="time">'+fmtTime(h.time)+'</span>'+
+      '<div class="info"><div class="title">'+esc(h.title||h.url)+'</div>'+
+      '<div class="url">'+esc(h.url)+'</div></div>';
+    el.addEventListener('click',function(){send({cmd:'navigate',url:h.url})});
+    list.appendChild(el);
+  });
+}
+
+document.getElementById('search').addEventListener('input',function(){render(this.value.trim())});
+document.getElementById('clear').addEventListener('click',function(){
+  if(confirm('Очистить всю историю?'))send({cmd:'clear_history'});
+});
+render('');
+</script>
+</body>
+</html>
