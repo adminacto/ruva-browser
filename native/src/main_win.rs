@@ -6,16 +6,22 @@ use std::sync::mpsc;
 use http::Request;
 use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
-use tao::window::{Icon, WindowBuilder};
-use wry::{WebView, WebViewBuilder, WebContext};
+use tao::window::{Icon, Window, WindowBuilder};
+use wry::dpi::{LogicalPosition, LogicalSize};
+use wry::{Rect, WebContext, WebView, WebViewBuilder};
 
-const TOOLBAR_JS: &str = include_str!("../ui/toolbar_inject.js");
+const CONTENT_JS: &str = include_str!("../ui/toolbar_inject.js");
+const TOOLBAR_HTML: &str = include_str!("../ui/toolbar.html");
 const NTP_HTML: &str = include_str!("../ui/ntp.html");
 const SETTINGS_HTML: &str = include_str!("../ui/settings.html");
 const LOGO_PNG: &[u8] = include_bytes!("../newlogo.png");
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const DATA_DIR: &str = ".ruva";
 const HARDCODED_API_KEY: &str = "";
+
+/// Height of the tab strip and the navigation bar in logical pixels.
+const TABS_H: f64 = 36.0;
+const NAV_H: f64 = 44.0;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Tab { id: String, url: String, title: String, active: bool }
@@ -115,8 +121,15 @@ impl Settings {
 }
 
 struct AppState {
-    tabs: Vec<Tab>, active_idx: usize, webview: Option<Rc<WebView>>,
-    settings: Settings, is_ntp: bool, tab_counter: u64,
+    tabs: Vec<Tab>,
+    active_idx: usize,
+    content: Option<Rc<WebView>>,
+    toolbar: Option<Rc<WebView>>,
+    settings: Settings,
+    is_ntp: bool,
+    tab_counter: u64,
+    splash_shown: bool,
+    logo_data: String,
 }
 
 fn search_url_prefix(engine: &str) -> &'static str {
@@ -154,6 +167,23 @@ fn normalize_url(input: &str, settings: &Settings) -> String {
     format!("{}{}", search_url_prefix(&settings.search_engine), encoded)
 }
 
+/// Minimal base64 encoder used to embed the logo as a data URL.
+fn base64_encode(data: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = *chunk.get(1).unwrap_or(&0) as u32;
+        let b2 = *chunk.get(2).unwrap_or(&0) as u32;
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        out.push(TABLE[(n >> 18) as usize & 63] as char);
+        out.push(TABLE[(n >> 12) as usize & 63] as char);
+        out.push(if chunk.len() > 1 { TABLE[(n >> 6) as usize & 63] as char } else { '=' });
+        out.push(if chunk.len() > 2 { TABLE[n as usize & 63] as char } else { '=' });
+    }
+    out
+}
+
 fn bg_inject_js(settings: &Settings) -> String {
     if settings.bg_image.is_empty() && settings.bg_video.is_empty() && settings.bg_color == "#1a1a1a" {
         return String::new();
@@ -175,33 +205,49 @@ fn bg_inject_js(settings: &Settings) -> String {
 }
 
 fn load_ntp_html(state: &Rc<RefCell<AppState>>) -> String {
-    let (bg_js, search_prefix, ntp_json) = {
-        let s = state.borrow();
-        (bg_inject_js(&s.settings), search_url_prefix(&s.settings.search_engine).to_string(), serde_json::to_string(&s.settings.ntp).unwrap_or_default())
+    let (bg_js, search_prefix, ntp_json, splash, logo) = {
+        let mut s = state.borrow_mut();
+        let splash = !s.splash_shown;
+        s.splash_shown = true;
+        (
+            bg_inject_js(&s.settings),
+            search_url_prefix(&s.settings.search_engine).to_string(),
+            serde_json::to_string(&s.settings.ntp).unwrap_or_default(),
+            splash,
+            s.logo_data.clone(),
+        )
     };
     let mut inject = format!("<script>window.__SEARCH_URL__='{}';window.__NTP__={};", search_prefix, ntp_json);
+    if splash {
+        inject.push_str(&format!("window.__SPLASH__=true;window.__LOGO__='{}';", logo));
+    }
     inject.push_str(&bg_js);
     inject.push_str("</script>\n<script>");
     NTP_HTML.replace("<script>", &inject)
 }
 
-/// Wraps the toolbar injection script so it can run as an initialization
-/// script on every page: waits for the DOM if it is not ready yet.
-fn toolbar_init_script() -> String {
-    format!(
-        "(function(){{function __ruvaRun(){{try{{{}}}catch(e){{}}}}if(document.readyState==='loading'){{document.addEventListener('DOMContentLoaded',__ruvaRun);}}else{{__ruvaRun();}}}})();",
-        TOOLBAR_JS
-    )
+fn chrome_height(settings: &Settings) -> f64 {
+    if settings.show_tab_bar { TABS_H + NAV_H } else { NAV_H }
 }
 
-fn inject_toolbar(wv: &WebView) {
-    let _ = wv.evaluate_script(&toolbar_init_script());
+/// Positions the toolbar webview at the top and the content webview below it.
+fn layout(window: &Window, toolbar: &WebView, content: &WebView, settings: &Settings) {
+    let scale = window.scale_factor();
+    let size = window.inner_size().to_logical::<f64>(scale);
+    let ch = chrome_height(settings);
+    let _ = toolbar.set_bounds(Rect {
+        position: LogicalPosition::new(0.0, 0.0).into(),
+        size: LogicalSize::new(size.width, ch).into(),
+    });
+    let _ = content.set_bounds(Rect {
+        position: LogicalPosition::new(0.0, ch).into(),
+        size: LogicalSize::new(size.width, (size.height - ch).max(0.0)).into(),
+    });
 }
 
-/// Pushes the current tab list into the injected toolbar so it can render
-/// the tab strip.
+/// Pushes the current tab list into the toolbar webview.
 fn push_tabs(state: &Rc<RefCell<AppState>>) {
-    let (json, wv) = {
+    let (json, toolbar) = {
         let mut s = state.borrow_mut();
         let active = s.active_idx;
         for (i, t) in s.tabs.iter_mut().enumerate() { t.active = i == active; }
@@ -209,10 +255,18 @@ fn push_tabs(state: &Rc<RefCell<AppState>>) {
             "show": s.settings.show_tab_bar,
             "tabs": s.tabs,
         });
-        (payload.to_string(), s.webview.as_ref().unwrap().clone())
+        (payload.to_string(), s.toolbar.as_ref().unwrap().clone())
     };
     let js = format!("window.__ruvaSetTabs&&window.__ruvaSetTabs({});", json);
-    let _ = wv.evaluate_script(&js);
+    let _ = toolbar.evaluate_script(&js);
+}
+
+/// Shows the given URL in the toolbar's address bar.
+fn push_url(state: &Rc<RefCell<AppState>>, url: &str) {
+    let toolbar = state.borrow().toolbar.as_ref().unwrap().clone();
+    let quoted = serde_json::to_string(url).unwrap_or_else(|_| "''".into());
+    let js = format!("window.__ruvaSetUrl&&window.__ruvaSetUrl({});", quoted);
+    let _ = toolbar.evaluate_script(&js);
 }
 
 fn navigate_to(state: &Rc<RefCell<AppState>>, url: &str) {
@@ -225,9 +279,10 @@ fn navigate_to(state: &Rc<RefCell<AppState>>, url: &str) {
             tab.title = url::Url::parse(url).map(|u| u.host_str().unwrap_or("").to_string()).unwrap_or_default();
         }
     }
-    let wv = state.borrow().webview.as_ref().unwrap().clone();
+    let wv = state.borrow().content.as_ref().unwrap().clone();
     let _ = wv.load_url(url);
     push_tabs(state);
+    push_url(state, url);
 }
 
 fn load_ntp(state: &Rc<RefCell<AppState>>) {
@@ -238,10 +293,10 @@ fn load_ntp(state: &Rc<RefCell<AppState>>) {
         if let Some(tab) = s.tabs.get_mut(idx) { tab.url.clear(); tab.title = "Новая вкладка".into(); }
     }
     let html = load_ntp_html(state);
-    let wv = state.borrow().webview.as_ref().unwrap().clone();
+    let wv = state.borrow().content.as_ref().unwrap().clone();
     let _ = wv.load_html(&html);
-    inject_toolbar(&wv);
     push_tabs(state);
+    push_url(state, "");
 }
 
 /// Loads whatever the currently active tab points at (NTP for empty URLs).
@@ -257,9 +312,10 @@ fn load_active_tab(state: &Rc<RefCell<AppState>>) {
             let mut s = state.borrow_mut();
             s.is_ntp = false;
         }
-        let wv = state.borrow().webview.as_ref().unwrap().clone();
+        let wv = state.borrow().content.as_ref().unwrap().clone();
         let _ = wv.load_url(&url);
         push_tabs(state);
+        push_url(state, &url);
     }
 }
 
@@ -314,10 +370,10 @@ fn load_settings_page(state: &Rc<RefCell<AppState>>) {
     // Inject BEFORE the page's own script so window.__SETTINGS__ is
     // available when the settings UI initializes.
     let html = SETTINGS_HTML.replace("<body>", &format!("<body>{}", inject));
-    let wv = state.borrow().webview.as_ref().unwrap().clone();
+    let wv = state.borrow().content.as_ref().unwrap().clone();
     let _ = wv.load_html(&html);
-    inject_toolbar(&wv);
     push_tabs(state);
+    push_url(state, "ruva://settings");
 }
 
 /// Decodes the bundled logo so the window / taskbar show the app icon.
@@ -353,21 +409,55 @@ pub fn main() {
         .with_min_inner_size(tao::dpi::LogicalSize::new(800.0, 600.0))
         .build(&event_loop).unwrap();
 
+    let logo_data = format!("data:image/png;base64,{}", base64_encode(LOGO_PNG));
+
     let state = Rc::new(RefCell::new(AppState {
         tabs: vec![Tab { id: "start".into(), url: String::new(), title: "Новая вкладка".into(), active: true }],
-        active_idx: 0, webview: None, settings: settings.clone(), is_ntp: true, tab_counter: 0,
+        active_idx: 0, content: None, toolbar: None,
+        settings: settings.clone(), is_ntp: true, tab_counter: 0,
+        splash_shown: false, logo_data,
     }));
 
+    let scale = window.scale_factor();
+    let win_size = window.inner_size().to_logical::<f64>(scale);
+    let ch = chrome_height(&settings);
+
+    // --- Toolbar webview (browser chrome: tab strip + navigation bar) ---
+    let tb_tx = ipc_tx.clone();
+    let tb_proxy = proxy.clone();
+    let toolbar_result = WebViewBuilder::new()
+        .with_html(TOOLBAR_HTML)
+        .with_bounds(Rect {
+            position: LogicalPosition::new(0.0, 0.0).into(),
+            size: LogicalSize::new(win_size.width, ch).into(),
+        })
+        .with_ipc_handler(move |req: Request<String>| {
+            let _ = tb_tx.send(req.body().to_string());
+            let _ = tb_proxy.send_event(());
+        })
+        .build_as_child(&window);
+
+    let toolbar = match toolbar_result {
+        Ok(wv) => Rc::new(wv),
+        Err(e) => { show_error_box(&format!("Failed to start the browser engine (WebView2).\n\nError: {}\n\nPlease install the Microsoft Edge WebView2 Runtime and try again.", e)); return; }
+    };
+
+    // --- Content webview (web pages, NTP, settings) ---
     let ipc_proxy = proxy.clone();
+    let content_tx = ipc_tx.clone();
     let nav_tx = ipc_tx.clone();
     let nav_proxy = proxy.clone();
-    let webview_result = WebViewBuilder::with_web_context(&mut web_context)
+    let content_result = WebViewBuilder::with_web_context(&mut web_context)
         .with_html(load_ntp_html(&state))
         .with_user_agent(USER_AGENT)
-        .with_initialization_script(&toolbar_init_script())
+        .with_initialization_script(CONTENT_JS)
+        .with_bounds(Rect {
+            position: LogicalPosition::new(0.0, ch).into(),
+            size: LogicalSize::new(win_size.width, (win_size.height - ch).max(0.0)).into(),
+        })
         .with_navigation_handler(move |url: String| {
             // Track real navigations (link clicks, redirects) so the active
-            // tab always shows the current URL.
+            // tab and the address bar always show the current URL.
             if url.starts_with("http://") || url.starts_with("https://") {
                 let msg = serde_json::json!({ "cmd": "__nav", "url": url }).to_string();
                 let _ = nav_tx.send(msg);
@@ -376,28 +466,26 @@ pub fn main() {
             true
         })
         .with_ipc_handler(move |req: Request<String>| {
-            let _ = ipc_tx.send(req.body().to_string());
-            // Wake up the event loop so the message is handled immediately.
+            let _ = content_tx.send(req.body().to_string());
             let _ = ipc_proxy.send_event(());
         })
-        .build(&window);
+        .build_as_child(&window);
 
-    let webview = match webview_result {
-        Ok(wv) => wv,
-        Err(e) => {
-            show_error_box(&format!(
-                "Failed to start the browser engine (WebView2).\n\nError: {}\n\nPlease install the Microsoft Edge WebView2 Runtime and try again.",
-                e
-            ));
-            return;
-        }
+    let content = match content_result {
+        Ok(wv) => Rc::new(wv),
+        Err(e) => { show_error_box(&format!("Failed to start the browser engine (WebView2).\n\nError: {}\n\nPlease install the Microsoft Edge WebView2 Runtime and try again.", e)); return; }
     };
 
-    let webview = Rc::new(webview);
-    state.borrow_mut().webview = Some(webview.clone());
+    {
+        let mut s = state.borrow_mut();
+        s.content = Some(content.clone());
+        s.toolbar = Some(toolbar.clone());
+    }
+    push_tabs(&state);
 
     let kb_state = state.clone();
-    let kb_webview = webview.clone();
+    let kb_content = content.clone();
+    let kb_toolbar = toolbar.clone();
     // Keep the web context alive for the lifetime of the app.
     let _web_context = web_context;
 
@@ -407,7 +495,7 @@ pub fn main() {
         while let Ok(text) = ai_rx.try_recv() {
             let safe = text.replace('\\', "\\\\").replace('`', "\\`").replace('\n', "<br>").replace('\r', "").replace('\'', "\\'").replace('"', "&quot;").replace('<', "&lt;").replace('>', "&gt;");
             let js = format!("if(document.getElementById('aiResponse')){{document.getElementById('aiResponse').innerHTML='{}';document.getElementById('aiLoading').style.display='none';document.getElementById('aiResponse').style.display='block';}}", safe);
-            let _ = kb_webview.evaluate_script(&js);
+            let _ = kb_content.evaluate_script(&js);
         }
 
         while let Ok(msg_str) = ipc_rx.try_recv() {
@@ -435,6 +523,7 @@ pub fn main() {
                             }
                         }
                         push_tabs(&kb_state);
+                        push_url(&kb_state, &msg.url);
                     }
                     "new_tab" => {
                         new_tab(&kb_state, "");
@@ -453,13 +542,17 @@ pub fn main() {
                         push_tabs(&kb_state);
                     }
                     "back" => {
-                        let _ = kb_webview.evaluate_script("history.back()");
+                        let _ = kb_content.evaluate_script("history.back()");
                     }
                     "forward" => {
-                        let _ = kb_webview.evaluate_script("history.forward()");
+                        let _ = kb_content.evaluate_script("history.forward()");
                     }
                     "reload" => {
-                        let _ = kb_webview.evaluate_script("location.reload()");
+                        let _ = kb_content.evaluate_script("location.reload()");
+                    }
+                    "focus_url" => {
+                        let _ = kb_toolbar.focus();
+                        let _ = kb_toolbar.evaluate_script("window.__ruvaFocusUrl&&window.__ruvaFocusUrl();");
                     }
                     "set_title" => {
                         {
@@ -488,6 +581,12 @@ pub fn main() {
                             if let Some(ref k) = msg.ai_api_key { if !k.is_empty() { st.settings.ai_api_key = k.clone(); } }
                             if let Some(ref m) = msg.ai_model { st.settings.ai_model = m.clone(); }
                             st.settings.save();
+                        }
+                        // Tab bar visibility may have changed: recompute the
+                        // webview layout so the content area fills the gap.
+                        {
+                            let s = kb_state.borrow();
+                            layout(&window, &kb_toolbar, &kb_content, &s.settings);
                         }
                         // Only leave the settings page when explicitly asked
                         // (the "Back" button). Individual changes save silently.
@@ -552,6 +651,10 @@ pub fn main() {
         match event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => { *control_flow = ControlFlow::Exit; }
+                WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                    let s = kb_state.borrow();
+                    layout(&window, &kb_toolbar, &kb_content, &s.settings);
+                }
                 _ => {}
             },
             _ => {}
