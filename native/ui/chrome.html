@@ -30,7 +30,7 @@ body{
   display:flex;align-items:flex-end;gap:2px;padding:0 6px;
   overflow:hidden;
 }
-#tabs{display:flex;align-items:flex-end;gap:2px;flex:1;min-width:0;overflow:hidden}
+#tabs{display:flex;align-items:flex-end;gap:2px;flex:0 1 auto;min-width:0;max-width:calc(100% - 190px);overflow:hidden}
 .tab{
   display:flex;align-items:center;gap:7px;
   height:30px;padding:0 8px 0 10px;min-width:0;
@@ -73,6 +73,15 @@ body{
   color:var(--muted);font-size:17px;line-height:1;
 }
 #newtab:hover{background:var(--surface);color:var(--text)}
+#dragzone{flex:1 1 auto;min-width:20px;height:100%}
+#wctl{display:flex;align-items:stretch;height:100%;flex:0 0 auto}
+.wbtn{
+  width:44px;display:flex;align-items:center;justify-content:center;
+  color:var(--muted);
+}
+.wbtn:hover{background:var(--surface);color:var(--text)}
+.wbtn.danger:hover{background:#d13438;color:#fff}
+.wbtn svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:1.1}
 
 /* ---------- toolbar ---------- */
 #toolbar{
@@ -157,6 +166,18 @@ body{
 <div id="tabstrip">
   <div id="tabs"></div>
   <div id="newtab" title="Новая вкладка (Ctrl+T)">+</div>
+  <div id="dragzone"></div>
+  <div id="wctl">
+    <div class="wbtn" id="wmin" title="Свернуть">
+      <svg viewBox="0 0 12 12"><path d="M1 6h10"/></svg>
+    </div>
+    <div class="wbtn" id="wmax" title="Развернуть">
+      <svg viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" rx="1"/></svg>
+    </div>
+    <div class="wbtn danger" id="wclose" title="Закрыть">
+      <svg viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9"/></svg>
+    </div>
+  </div>
 </div>
 
 <div id="toolbar">
@@ -309,6 +330,12 @@ function render() {
     urlEl.value = active.display_url || '';
   }
 
+  var wmax = document.getElementById('wmax');
+  wmax.title = state.maximized ? 'Восстановить' : 'Развернуть';
+  wmax.innerHTML = state.maximized
+    ? '<svg viewBox="0 0 12 12"><rect x="1.5" y="3.5" width="7" height="7" rx="1"/><path d="M3.5 3.5V1.5h7v7h-2"/></svg>'
+    : '<svg viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" rx="1"/></svg>';
+
   document.getElementById('star').className = 'icon-btn' + (state.bookmarked ? ' on' : '');
   document.getElementById('back').className = 'icon-btn' + (active && active.can_back ? '' : ' disabled');
   document.getElementById('forward').className = 'icon-btn' + (active && active.can_forward ? '' : ' disabled');
@@ -356,6 +383,14 @@ document.getElementById('menu').addEventListener('click', function (e) {
   e.stopPropagation();
   post('toggle_menu');
 });
+
+document.getElementById('wmin').addEventListener('click', function () { post('win_minimize'); });
+document.getElementById('wmax').addEventListener('click', function () { post('win_maximize'); });
+document.getElementById('wclose').addEventListener('click', function () { post('win_close'); });
+
+var dragzone = document.getElementById('dragzone');
+dragzone.addEventListener('mousedown', function (e) { if (e.button === 0) post('win_drag'); });
+dragzone.addEventListener('dblclick', function () { post('win_maximize'); });
 
 urlEl.addEventListener('input', function () { urlDirty = true; });
 urlEl.addEventListener('focus', function () { urlEl.select(); });
