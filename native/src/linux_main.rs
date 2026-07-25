@@ -45,6 +45,8 @@ struct IpcMsg {
     #[serde(default)]
     title: String,
     #[serde(default)]
+    close: bool,
+    #[serde(default)]
     search_engine: String,
     #[serde(default)]
     homepage: Option<String>,
@@ -407,7 +409,9 @@ fn load_settings_page(state: &Rc<RefCell<AppState>>) {
         "<script>window.__SETTINGS__={};</script>",
         settings_json
     );
-    let html = SETTINGS_HTML.replace("</body>", &format!("{}</body>", inject));
+    // Inject BEFORE the page's own script so window.__SETTINGS__ is
+    // available when the settings UI initializes.
+    let html = SETTINGS_HTML.replace("<body>", &format!("<body>{}", inject));
     let _ = wv.load_html(&html);
     refresh_tab_bar(state);
 }
@@ -1044,6 +1048,12 @@ pub fn main() {
                             st.settings.ai_model = m.clone();
                         }
                         st.settings.save();
+                        drop(st);
+                        // The "Back" button sends close:true — leave the
+                        // settings page and return to the new tab page.
+                        if msg.close {
+                            load_ntp(&kb_state);
+                        }
                     }
                     "ai_chat" => {
                         let prompt = msg.ai_prompt.clone();

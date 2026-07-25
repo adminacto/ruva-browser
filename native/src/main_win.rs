@@ -6,12 +6,13 @@ use std::sync::mpsc;
 use http::Request;
 use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
-use tao::window::WindowBuilder;
+use tao::window::{Icon, WindowBuilder};
 use wry::{WebView, WebViewBuilder, WebContext};
 
 const TOOLBAR_JS: &str = include_str!("../ui/toolbar_inject.js");
 const NTP_HTML: &str = include_str!("../ui/ntp.html");
 const SETTINGS_HTML: &str = include_str!("../ui/settings.html");
+const LOGO_PNG: &[u8] = include_bytes!("../newlogo.png");
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const DATA_DIR: &str = ".ruva";
 const HARDCODED_API_KEY: &str = "";
@@ -22,8 +23,10 @@ struct Tab { id: String, url: String, title: String, active: bool }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 struct IpcMsg {
     cmd: String,
+    #[serde(default)] id: String,
     #[serde(default)] url: String,
     #[serde(default)] title: String,
+    #[serde(default)] close: bool,
     #[serde(default)] search_engine: String,
     #[serde(default)] homepage: Option<String>,
     #[serde(default)] bg_color: Option<String>,
@@ -113,7 +116,7 @@ impl Settings {
 
 struct AppState {
     tabs: Vec<Tab>, active_idx: usize, webview: Option<Rc<WebView>>,
-    settings: Settings, is_ntp: bool,
+    settings: Settings, is_ntp: bool, tab_counter: u64,
 }
 
 fn search_url_prefix(engine: &str) -> &'static str {
@@ -195,6 +198,23 @@ fn inject_toolbar(wv: &WebView) {
     let _ = wv.evaluate_script(&toolbar_init_script());
 }
 
+/// Pushes the current tab list into the injected toolbar so it can render
+/// the tab strip.
+fn push_tabs(state: &Rc<RefCell<AppState>>) {
+    let (json, wv) = {
+        let mut s = state.borrow_mut();
+        let active = s.active_idx;
+        for (i, t) in s.tabs.iter_mut().enumerate() { t.active = i == active; }
+        let payload = serde_json::json!({
+            "show": s.settings.show_tab_bar,
+            "tabs": s.tabs,
+        });
+        (payload.to_string(), s.webview.as_ref().unwrap().clone())
+    };
+    let js = format!("window.__ruvaSetTabs&&window.__ruvaSetTabs({});", json);
+    let _ = wv.evaluate_script(&js);
+}
+
 fn navigate_to(state: &Rc<RefCell<AppState>>, url: &str) {
     {
         let mut s = state.borrow_mut();
@@ -207,6 +227,7 @@ fn navigate_to(state: &Rc<RefCell<AppState>>, url: &str) {
     }
     let wv = state.borrow().webview.as_ref().unwrap().clone();
     let _ = wv.load_url(url);
+    push_tabs(state);
 }
 
 fn load_ntp(state: &Rc<RefCell<AppState>>) {
@@ -214,12 +235,73 @@ fn load_ntp(state: &Rc<RefCell<AppState>>) {
         let mut s = state.borrow_mut();
         s.is_ntp = true;
         let idx = s.active_idx;
-        if let Some(tab) = s.tabs.get_mut(idx) { tab.url.clear(); tab.title = "New Tab".into(); }
+        if let Some(tab) = s.tabs.get_mut(idx) { tab.url.clear(); tab.title = "Новая вкладка".into(); }
     }
     let html = load_ntp_html(state);
     let wv = state.borrow().webview.as_ref().unwrap().clone();
     let _ = wv.load_html(&html);
     inject_toolbar(&wv);
+    push_tabs(state);
+}
+
+/// Loads whatever the currently active tab points at (NTP for empty URLs).
+fn load_active_tab(state: &Rc<RefCell<AppState>>) {
+    let url = {
+        let s = state.borrow();
+        s.tabs.get(s.active_idx).map(|t| t.url.clone()).unwrap_or_default()
+    };
+    if url.is_empty() || url == "ruva://newtab" {
+        load_ntp(state);
+    } else {
+        {
+            let mut s = state.borrow_mut();
+            s.is_ntp = false;
+        }
+        let wv = state.borrow().webview.as_ref().unwrap().clone();
+        let _ = wv.load_url(&url);
+        push_tabs(state);
+    }
+}
+
+fn new_tab(state: &Rc<RefCell<AppState>>, url: &str) {
+    {
+        let mut s = state.borrow_mut();
+        s.tab_counter += 1;
+        let id = format!("tab{}", s.tab_counter);
+        s.tabs.push(Tab {
+            id, url: url.to_string(),
+            title: if url.is_empty() { "Новая вкладка".into() } else { url.to_string() },
+            active: true,
+        });
+        s.active_idx = s.tabs.len() - 1;
+    }
+    if url.is_empty() { load_ntp(state); } else { navigate_to(state, url); }
+}
+
+fn close_tab(state: &Rc<RefCell<AppState>>, id: &str) {
+    {
+        let mut s = state.borrow_mut();
+        if s.tabs.len() <= 1 {
+            s.tabs[0] = Tab { id: "start".into(), url: String::new(), title: "Новая вкладка".into(), active: true };
+            s.active_idx = 0;
+        } else {
+            let idx = s.tabs.iter().position(|t| t.id == id).unwrap_or(s.active_idx);
+            s.tabs.remove(idx);
+            if s.active_idx >= s.tabs.len() { s.active_idx = s.tabs.len() - 1; }
+            else if idx < s.active_idx { s.active_idx -= 1; }
+        }
+    }
+    load_active_tab(state);
+}
+
+fn switch_tab(state: &Rc<RefCell<AppState>>, id: &str) {
+    let changed = {
+        let mut s = state.borrow_mut();
+        if let Some(idx) = s.tabs.iter().position(|t| t.id == id) {
+            if idx != s.active_idx { s.active_idx = idx; true } else { false }
+        } else { false }
+    };
+    if changed { load_active_tab(state); }
 }
 
 fn load_settings_page(state: &Rc<RefCell<AppState>>) {
@@ -229,10 +311,21 @@ fn load_settings_page(state: &Rc<RefCell<AppState>>) {
     }
     let settings_json = { let s = state.borrow(); serde_json::to_string(&s.settings).unwrap_or_default() };
     let inject = format!("<script>window.__SETTINGS__={};</script>", settings_json);
-    let html = SETTINGS_HTML.replace("</body>", &format!("{}</body>", inject));
+    // Inject BEFORE the page's own script so window.__SETTINGS__ is
+    // available when the settings UI initializes.
+    let html = SETTINGS_HTML.replace("<body>", &format!("<body>{}", inject));
     let wv = state.borrow().webview.as_ref().unwrap().clone();
     let _ = wv.load_html(&html);
     inject_toolbar(&wv);
+    push_tabs(state);
+}
+
+/// Decodes the bundled logo so the window / taskbar show the app icon.
+fn load_window_icon() -> Option<Icon> {
+    let img = image::load_from_memory(LOGO_PNG).ok()?;
+    let img = img.thumbnail(64, 64).into_rgba8();
+    let (w, h) = img.dimensions();
+    Icon::from_rgba(img.into_raw(), w, h).ok()
 }
 
 pub fn main() {
@@ -255,20 +348,33 @@ pub fn main() {
 
     let window = WindowBuilder::new()
         .with_title("Ruva Browser")
+        .with_window_icon(load_window_icon())
         .with_inner_size(tao::dpi::LogicalSize::new(1280.0, 800.0))
         .with_min_inner_size(tao::dpi::LogicalSize::new(800.0, 600.0))
         .build(&event_loop).unwrap();
 
     let state = Rc::new(RefCell::new(AppState {
-        tabs: vec![Tab { id: "start".into(), url: String::new(), title: "New Tab".into(), active: true }],
-        active_idx: 0, webview: None, settings: settings.clone(), is_ntp: true,
+        tabs: vec![Tab { id: "start".into(), url: String::new(), title: "Новая вкладка".into(), active: true }],
+        active_idx: 0, webview: None, settings: settings.clone(), is_ntp: true, tab_counter: 0,
     }));
 
     let ipc_proxy = proxy.clone();
+    let nav_tx = ipc_tx.clone();
+    let nav_proxy = proxy.clone();
     let webview_result = WebViewBuilder::with_web_context(&mut web_context)
         .with_html(load_ntp_html(&state))
         .with_user_agent(USER_AGENT)
         .with_initialization_script(&toolbar_init_script())
+        .with_navigation_handler(move |url: String| {
+            // Track real navigations (link clicks, redirects) so the active
+            // tab always shows the current URL.
+            if url.starts_with("http://") || url.starts_with("https://") {
+                let msg = serde_json::json!({ "cmd": "__nav", "url": url }).to_string();
+                let _ = nav_tx.send(msg);
+                let _ = nav_proxy.send_event(());
+            }
+            true
+        })
         .with_ipc_handler(move |req: Request<String>| {
             let _ = ipc_tx.send(req.body().to_string());
             // Wake up the event loop so the message is handled immediately.
@@ -318,6 +424,34 @@ pub fn main() {
                             navigate_to(&kb_state, &url);
                         }
                     }
+                    "__nav" => {
+                        {
+                            let mut st = kb_state.borrow_mut();
+                            if !st.is_ntp {
+                                let idx = st.active_idx;
+                                if let Some(tab) = st.tabs.get_mut(idx) {
+                                    tab.url = msg.url.clone();
+                                }
+                            }
+                        }
+                        push_tabs(&kb_state);
+                    }
+                    "new_tab" => {
+                        new_tab(&kb_state, "");
+                    }
+                    "close_tab" => {
+                        let id = if msg.id.is_empty() {
+                            let s = kb_state.borrow();
+                            s.tabs.get(s.active_idx).map(|t| t.id.clone()).unwrap_or_default()
+                        } else { msg.id.clone() };
+                        close_tab(&kb_state, &id);
+                    }
+                    "switch_tab" => {
+                        switch_tab(&kb_state, &msg.id);
+                    }
+                    "get_tabs" => {
+                        push_tabs(&kb_state);
+                    }
                     "back" => {
                         let _ = kb_webview.evaluate_script("history.back()");
                     }
@@ -328,9 +462,14 @@ pub fn main() {
                         let _ = kb_webview.evaluate_script("location.reload()");
                     }
                     "set_title" => {
-                        let mut st = kb_state.borrow_mut();
-                        let idx = st.active_idx;
-                        if let Some(tab) = st.tabs.get_mut(idx) { tab.title = msg.title.clone(); }
+                        {
+                            let mut st = kb_state.borrow_mut();
+                            let idx = st.active_idx;
+                            if let Some(tab) = st.tabs.get_mut(idx) {
+                                if !msg.title.is_empty() { tab.title = msg.title.clone(); }
+                            }
+                        }
+                        push_tabs(&kb_state);
                     }
                     "save_settings" => {
                         {
@@ -350,8 +489,13 @@ pub fn main() {
                             if let Some(ref m) = msg.ai_model { st.settings.ai_model = m.clone(); }
                             st.settings.save();
                         }
-                        // Return to the new tab page so the changes are visible.
-                        load_ntp(&kb_state);
+                        // Only leave the settings page when explicitly asked
+                        // (the "Back" button). Individual changes save silently.
+                        if msg.close {
+                            load_ntp(&kb_state);
+                        } else {
+                            push_tabs(&kb_state);
+                        }
                     }
                     "open_settings" => {
                         load_settings_page(&kb_state);

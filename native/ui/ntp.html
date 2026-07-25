@@ -127,7 +127,12 @@ var NTP=window.__NTP__||{};
 var SEARCH_URL=window.__SEARCH_URL__||'https://duckduckgo.com/?q=';
 
 function sendIpc(cmd,data){
-  try{var m=Object.assign({cmd:cmd},data||{});window.webkit.messageHandlers.ipc.postMessage(JSON.stringify(m))}catch(e){}
+  var m=JSON.stringify(Object.assign({cmd:cmd},data||{}));
+  try{
+    if(window.ipc&&window.ipc.postMessage){window.ipc.postMessage(m);return;}
+    if(window.chrome&&window.chrome.webview&&window.chrome.webview.postMessage){window.chrome.webview.postMessage(m);return;}
+    if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.ipc){window.webkit.messageHandlers.ipc.postMessage(m);return;}
+  }catch(e){}
 }
 
 function updateClock(){
@@ -180,7 +185,7 @@ function applyNtpStyle(){
 }
 
 document.getElementById('searchInput').addEventListener('keydown',function(e){
-  if(e.key==='Enter'){
+  if(e.key==='Enter'&&!(e.isComposing||e.keyCode===229)){
     var v=this.value.trim();if(!v)return;
     var url=v;
     if(!/^https?:\/\//i.test(v)&&!v.includes('.')){url=SEARCH_URL+encodeURIComponent(v)}
