@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ruva Chrome</title>
+<style>
+:root{
+  --bg:#17171a;
+  --strip:#101013;
+  --surface:#22222a;
+  --surface-hi:#2c2c36;
+  --border:#2f2f39;
+  --text:#e8e8ee;
+  --muted:#9a9aa8;
+  --accent:#5b9cff;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;
+  font-size:13px;user-select:none;-webkit-user-select:none;
+  display:flex;flex-direction:column;
+}
+
+/* ---------- tab strip ---------- */
+#tabstrip{
+  height:36px;min-height:36px;background:var(--strip);
+  display:flex;align-items:flex-end;gap:2px;padding:0 6px;
+  overflow:hidden;
+}
+#tabs{display:flex;align-items:flex-end;gap:2px;flex:1;min-width:0;overflow:hidden}
+.tab{
+  display:flex;align-items:center;gap:7px;
+  height:30px;padding:0 8px 0 10px;min-width:0;
+  flex:1 1 0;max-width:220px;
+  background:transparent;border:1px solid transparent;
+  border-radius:8px 8px 0 0;cursor:default;
+  transition:background .12s ease,color .12s ease;
+  color:var(--muted);
+}
+.tab:hover{background:#1b1b21;color:var(--text)}
+.tab.active{background:var(--bg);border-color:var(--border);border-bottom-color:var(--bg);color:var(--text)}
+.tab .fav{
+  width:16px;height:16px;flex:0 0 16px;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;overflow:hidden;background:#2a2a33;color:var(--muted);
+}
+.tab .fav img{width:16px;height:16px;display:block}
+.tab .label{
+  flex:1 1 auto;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:12px;line-height:30px;
+}
+.tab .close{
+  flex:0 0 18px;width:18px;height:18px;border-radius:5px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;line-height:1;color:var(--muted);opacity:0;
+}
+.tab:hover .close,.tab.active .close{opacity:1}
+.tab .close:hover{background:#3a3a45;color:var(--text)}
+.tab .spinner{
+  width:12px;height:12px;border-radius:50%;
+  border:2px solid #3a3a45;border-top-color:var(--accent);
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tab.private .fav{background:rgba(91,156,255,.18);color:var(--accent)}
+#newtab{
+  flex:0 0 28px;width:28px;height:28px;margin:0 0 2px 4px;
+  border-radius:8px;display:flex;align-items:center;justify-content:center;
+  color:var(--muted);font-size:17px;line-height:1;
+}
+#newtab:hover{background:var(--surface);color:var(--text)}
+
+/* ---------- toolbar ---------- */
+#toolbar{
+  height:44px;min-height:44px;position:relative;
+  display:flex;align-items:center;gap:4px;padding:0 8px;
+  background:var(--bg);border-bottom:1px solid var(--border);
+}
+.icon-btn{
+  width:30px;height:30px;flex:0 0 30px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--muted);
+}
+.icon-btn:hover{background:var(--surface);color:var(--text)}
+.icon-btn.disabled{opacity:.35}
+.icon-btn.disabled:hover{background:transparent;color:var(--muted)}
+.icon-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.icon-btn.on{color:var(--accent)}
+#urlwrap{
+  flex:1 1 auto;min-width:0;height:32px;
+  display:flex;align-items:center;gap:8px;
+  background:var(--surface);border:1px solid transparent;border-radius:16px;
+  padding:0 12px;margin:0 4px;transition:background .15s,border-color .15s;
+}
+#urlwrap:focus-within{background:#191920;border-color:var(--accent)}
+#urlwrap .lead{flex:0 0 15px;display:flex;color:var(--muted)}
+#urlwrap .lead svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#url{
+  flex:1 1 auto;min-width:0;height:100%;
+  background:transparent;border:none;outline:none;
+  color:var(--text);font-size:13px;font-family:inherit;
+  user-select:text;-webkit-user-select:text;
+}
+#url::placeholder{color:#6a6a78}
+#zoombadge{
+  display:none;flex:0 0 auto;font-size:11px;color:var(--muted);
+  background:#2f2f3a;border-radius:9px;padding:2px 7px;
+}
+#progress{
+  position:absolute;left:0;bottom:-1px;height:2px;width:0;
+  background:var(--accent);opacity:0;transition:width .2s ease,opacity .25s ease;
+}
+#progress.on{opacity:1}
+
+/* ---------- bookmarks bar ---------- */
+#bookmarks{
+  height:32px;min-height:32px;display:none;align-items:center;gap:2px;
+  padding:0 8px;background:var(--bg);border-bottom:1px solid var(--border);
+  overflow:hidden;
+}
+#bookmarks.show{display:flex}
+.bm{
+  display:flex;align-items:center;gap:6px;max-width:180px;
+  height:24px;padding:0 8px;border-radius:6px;color:var(--muted);font-size:12px;
+}
+.bm:hover{background:var(--surface);color:var(--text)}
+.bm img{width:14px;height:14px;flex:0 0 14px}
+.bm span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bmempty{color:#5f5f6c;font-size:12px;padding:0 4px}
+
+/* ---------- find bar ---------- */
+#findbar{
+  height:40px;min-height:40px;display:none;align-items:center;gap:6px;
+  padding:0 10px;background:var(--strip);border-bottom:1px solid var(--border);
+}
+#findbar.show{display:flex}
+#findinput{
+  flex:1 1 auto;min-width:0;height:26px;background:var(--surface);
+  border:1px solid var(--border);border-radius:8px;padding:0 10px;
+  color:var(--text);font-size:12px;outline:none;font-family:inherit;
+  user-select:text;-webkit-user-select:text;
+}
+#findinput:focus{border-color:var(--accent)}
+.small-btn{
+  height:26px;padding:0 10px;border-radius:8px;background:var(--surface);
+  color:var(--muted);font-size:12px;display:flex;align-items:center;
+}
+.small-btn:hover{background:var(--surface-hi);color:var(--text)}
+</style>
+</head>
+<body>
+
+<div id="tabstrip">
+  <div id="tabs"></div>
+  <div id="newtab" title="Новая вкладка (Ctrl+T)">+</div>
+</div>
+
+<div id="toolbar">
+  <div class="icon-btn" id="back" title="Назад (Alt+←)">
+    <svg viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+  </div>
+  <div class="icon-btn" id="forward" title="Вперёд (Alt+→)">
+    <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+  </div>
+  <div class="icon-btn" id="reload" title="Обновить (Ctrl+R)">
+    <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+  </div>
+  <div class="icon-btn" id="home" title="Домашняя страница">
+    <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+  </div>
+
+  <div id="urlwrap">
+    <div class="lead" id="lead">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </div>
+    <input id="url" type="text" placeholder="Поиск или адрес" spellcheck="false" autocomplete="off">
+    <div id="zoombadge">100%</div>
+  </div>
+
+  <div class="icon-btn" id="star" title="В закладки (Ctrl+D)">
+    <svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></svg>
+  </div>
+  <div class="icon-btn" id="menu" title="Меню">
+    <svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>
+  </div>
+  <div id="progress"></div>
+</div>
+
+<div id="bookmarks"></div>
+
+<div id="findbar">
+  <input id="findinput" type="text" placeholder="Найти на странице" spellcheck="false">
+  <div class="small-btn" id="findprev">&#8593;</div>
+  <div class="small-btn" id="findnext">&#8595;</div>
+  <div class="small-btn" id="findclose">Закрыть</div>
+</div>
+
+<script>
+function post(cmd, data) {
+  var m = Object.assign({ cmd: cmd }, data || {});
+  var s = JSON.stringify(m);
+  try { if (window.ipc && window.ipc.postMessage) return window.ipc.postMessage(s); } catch (e) {}
+  try { window.webkit.messageHandlers.ipc.postMessage(s); } catch (e) {}
+}
+
+var state = { tabs: [], active_id: 0, bookmarks: [], show_bookmarks: false, find_open: false, zoom: 100, bookmarked: false, loading: false };
+var urlEl = document.getElementById('url');
+var urlDirty = false;
+
+function faviconFor(url) {
+  if (!url || url.indexOf('ruva') === 0 || url.indexOf('http://ruva.') === 0) return null;
+  try {
+    var host = new URL(url).hostname;
+    if (!host) return null;
+    return 'https://www.google.com/s2/favicons?sz=32&domain=' + host;
+  } catch (e) { return null; }
+}
+
+function renderTabs() {
+  var box = document.getElementById('tabs');
+  box.innerHTML = '';
+  state.tabs.forEach(function (t) {
+    var el = document.createElement('div');
+    el.className = 'tab' + (t.id === state.active_id ? ' active' : '') + (t.private ? ' private' : '');
+    el.title = (t.title || 'Новая вкладка') + (t.url ? '\n' + t.url : '');
+
+    var fav = document.createElement('div');
+    fav.className = 'fav';
+    if (t.loading) {
+      fav.innerHTML = '<div class="spinner"></div>';
+      fav.style.background = 'transparent';
+    } else {
+      var f = faviconFor(t.url);
+      if (f) {
+        var img = document.createElement('img');
+        img.src = f;
+        img.alt = '';
+        img.onerror = function () { fav.textContent = t.private ? '\u25CF' : 'R'; };
+        fav.appendChild(img);
+      } else {
+        fav.textContent = t.private ? '\u25CF' : 'R';
+      }
+    }
+
+    var label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = t.title || 'Новая вкладка';
+
+    var close = document.createElement('div');
+    close.className = 'close';
+    close.textContent = '\u00D7';
+    close.addEventListener('mousedown', function (e) {
+      e.stopPropagation();
+      post('close_tab', { tab: t.id });
+    });
+
+    el.appendChild(fav);
+    el.appendChild(label);
+    el.appendChild(close);
+    el.addEventListener('mousedown', function (e) {
+      if (e.button === 1) { post('close_tab', { tab: t.id }); return; }
+      post('select_tab', { tab: t.id });
+    });
+    box.appendChild(el);
+  });
+}
+
+function renderBookmarks() {
+  var bar = document.getElementById('bookmarks');
+  bar.className = state.show_bookmarks ? 'show' : '';
+  bar.innerHTML = '';
+  if (!state.show_bookmarks) return;
+  if (!state.bookmarks.length) {
+    var e = document.createElement('div');
+    e.id = 'bmempty';
+    e.textContent = 'Закладок пока нет — нажмите звёздочку, чтобы добавить';
+    bar.appendChild(e);
+    return;
+  }
+  state.bookmarks.slice(0, 30).forEach(function (b) {
+    var el = document.createElement('div');
+    el.className = 'bm';
+    el.title = b.url;
+    var f = faviconFor(b.url);
+    if (f) { var img = document.createElement('img'); img.src = f; img.alt = ''; el.appendChild(img); }
+    var s = document.createElement('span');
+    s.textContent = b.title || b.url;
+    el.appendChild(s);
+    el.addEventListener('mousedown', function (e) {
+      if (e.button === 1) { post('navigate', { url: b.url, new_tab: true }); return; }
+      post('navigate', { url: b.url });
+    });
+    bar.appendChild(el);
+  });
+}
+
+function render() {
+  renderTabs();
+  renderBookmarks();
+
+  var active = null;
+  state.tabs.forEach(function (t) { if (t.id === state.active_id) active = t; });
+
+  if (active && !urlDirty && document.activeElement !== urlEl) {
+    urlEl.value = active.display_url || '';
+  }
+
+  document.getElementById('star').className = 'icon-btn' + (state.bookmarked ? ' on' : '');
+  document.getElementById('back').className = 'icon-btn' + (active && active.can_back ? '' : ' disabled');
+  document.getElementById('forward').className = 'icon-btn' + (active && active.can_forward ? '' : ' disabled');
+
+  var zb = document.getElementById('zoombadge');
+  if (state.zoom && state.zoom !== 100) { zb.style.display = 'block'; zb.textContent = state.zoom + '%'; }
+  else zb.style.display = 'none';
+
+  var p = document.getElementById('progress');
+  if (active && active.loading) { p.className = 'on'; p.style.width = '70%'; }
+  else { p.style.width = '100%'; p.className = ''; setTimeout(function () { p.style.width = '0'; }, 250); }
+
+  var fb = document.getElementById('findbar');
+  var wasOpen = fb.classList.contains('show');
+  fb.className = state.find_open ? 'show' : '';
+  if (state.find_open && !wasOpen) {
+    var fi = document.getElementById('findinput');
+    fi.value = '';
+    setTimeout(function () { fi.focus(); }, 30);
+  }
+}
+
+window.__ruvaState = function (s) {
+  state = Object.assign(state, s);
+  render();
+};
+window.__ruvaFocusUrl = function () {
+  urlEl.focus();
+  urlEl.select();
+};
+window.__ruvaFocusFind = function () {
+  var fi = document.getElementById('findinput');
+  fi.focus();
+  fi.select();
+};
+
+/* toolbar actions */
+document.getElementById('back').addEventListener('click', function () { post('back'); });
+document.getElementById('forward').addEventListener('click', function () { post('forward'); });
+document.getElementById('reload').addEventListener('click', function () { post('reload'); });
+document.getElementById('home').addEventListener('click', function () { post('home'); });
+document.getElementById('newtab').addEventListener('click', function () { post('new_tab'); });
+document.getElementById('star').addEventListener('click', function () { post('toggle_bookmark'); });
+document.getElementById('menu').addEventListener('click', function (e) {
+  e.stopPropagation();
+  post('toggle_menu');
+});
+
+urlEl.addEventListener('input', function () { urlDirty = true; });
+urlEl.addEventListener('focus', function () { urlEl.select(); });
+urlEl.addEventListener('blur', function () { urlDirty = false; render(); });
+urlEl.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') {
+    if (e.nativeEvent && e.nativeEvent.isComposing) return;
+    if (e.isComposing || e.keyCode === 229) return;
+    urlDirty = false;
+    post('navigate', { url: urlEl.value });
+    urlEl.blur();
+  } else if (e.key === 'Escape') {
+    urlDirty = false;
+    urlEl.blur();
+    render();
+  }
+});
+
+/* find bar */
+var findInput = document.getElementById('findinput');
+findInput.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { post('find', { query: findInput.value, back: e.shiftKey }); }
+  else if (e.key === 'Escape') { post('close_find'); }
+});
+findInput.addEventListener('input', function () { post('find', { query: findInput.value, live: true }); });
+document.getElementById('findnext').addEventListener('click', function () { post('find', { query: findInput.value }); });
+document.getElementById('findprev').addEventListener('click', function () { post('find', { query: findInput.value, back: true }); });
+document.getElementById('findclose').addEventListener('click', function () { post('close_find'); });
+
+document.addEventListener('mousedown', function (e) {
+  if (e.target.closest && e.target.closest('#menu')) return;
+  post('close_panel');
+});
+
+document.addEventListener('keydown', function (e) {
+  var ctrl = e.ctrlKey || e.metaKey;
+  if (ctrl && e.key.toLowerCase() === 't') { e.preventDefault(); post('new_tab'); }
+  else if (ctrl && e.key.toLowerCase() === 'w') { e.preventDefault(); post('close_tab'); }
+  else if (ctrl && e.key.toLowerCase() === 'l') { e.preventDefault(); window.__ruvaFocusUrl(); }
+  else if (ctrl && e.key.toLowerCase() === 'r') { e.preventDefault(); post('reload'); }
+  else if (ctrl && e.key.toLowerCase() === 'd') { e.preventDefault(); post('toggle_bookmark'); }
+  else if (ctrl && e.key.toLowerCase() === 'f') { e.preventDefault(); post('open_find'); }
+  else if (ctrl && e.key === 'Tab') { e.preventDefault(); post('next_tab'); }
+  else if (e.key === 'F11') { e.preventDefault(); post('toggle_fullscreen'); }
+  else if (e.key === 'F5') { e.preventDefault(); post('reload'); }
+});
+
+render();
+post('chrome_ready');
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Ruva Menu</title>
+<style>
+:root{
+  --bg:#1c1c22;--border:#31313c;--text:#e8e8ee;--muted:#9a9aa8;
+  --hover:#2a2a34;--accent:#5b9cff;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;
+  font-size:13px;user-select:none;-webkit-user-select:none;
+  border:1px solid var(--border);
+  display:flex;flex-direction:column;padding:6px;
+  animation:pop .12s ease-out;
+}
+@keyframes pop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.item{
+  display:flex;align-items:center;gap:10px;height:34px;
+  padding:0 10px;border-radius:8px;color:var(--text);
+}
+.item:hover{background:var(--hover)}
+.item .ic{flex:0 0 16px;display:flex;color:var(--muted)}
+.item .ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.item .kb{margin-left:auto;color:#6a6a78;font-size:11px}
+.sep{height:1px;background:var(--border);margin:5px 6px}
+.zoom{display:flex;align-items:center;gap:8px;height:36px;padding:0 10px}
+.zoom .lbl{color:var(--muted);flex:1}
+.zbtn{
+  width:26px;height:26px;border-radius:7px;background:#26262f;
+  display:flex;align-items:center;justify-content:center;color:var(--text);
+}
+.zbtn:hover{background:#33333e}
+.zval{min-width:44px;text-align:center;color:var(--muted);font-size:12px}
+.foot{margin-top:auto;padding:8px 10px 4px;color:#5f5f6c;font-size:11px;display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+<div class="item" data-cmd="new_tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>Новая вкладка<span class="kb">Ctrl+T</span></div>
+<div class="item" data-cmd="new_private_tab"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><path d="m4 4 16 16"/></svg></span>Приватная вкладка<span class="kb">Ctrl+Shift+N</span></div>
+<div class="sep"></div>
+<div class="item" data-cmd="open_library" data-view="bookmarks"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></svg></span>Закладки</div>
+<div class="item" data-cmd="open_library" data-view="history"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>История</div>
+<div class="item" data-cmd="open_library" data-view="downloads"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 4v10"/><path d="m8 11 4 4 4-4"/><path d="M5 19h14"/></svg></span>Загрузки</div>
+<div class="sep"></div>
+<div class="zoom">
+  <span class="lbl">Масштаб</span>
+  <div class="zbtn" data-cmd="zoom_out">&#8722;</div>
+  <div class="zval" id="zval">100%</div>
+  <div class="zbtn" data-cmd="zoom_in">+</div>
+  <div class="zbtn" data-cmd="zoom_reset" title="Сбросить">&#8635;</div>
+</div>
+<div class="item" data-cmd="open_find"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>Найти на странице<span class="kb">Ctrl+F</span></div>
+<div class="item" data-cmd="toggle_fullscreen"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/></svg></span>Во весь экран<span class="kb">F11</span></div>
+<div class="item" data-cmd="toggle_bookmarks_bar"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h7"/></svg></span>Панель закладок</div>
+<div class="sep"></div>
+<div class="item" data-cmd="open_settings"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></span>Настройки</div>
+<div class="foot"><span>Ruva Browser</span><span id="ver">v0.3.0</span></div>
+
+<script>
+function post(cmd, data) {
+  var m = Object.assign({ cmd: cmd }, data || {});
+  var s = JSON.stringify(m);
+  try { if (window.ipc && window.ipc.postMessage) return window.ipc.postMessage(s); } catch (e) {}
+  try { window.webkit.messageHandlers.ipc.postMessage(s); } catch (e) {}
+}
+window.__ruvaPanel = function (s) {
+  if (s && s.zoom) document.getElementById('zval').textContent = s.zoom + '%';
+  if (s && s.version) document.getElementById('ver').textContent = 'v' + s.version;
+};
+document.querySelectorAll('[data-cmd]').forEach(function (el) {
+  el.addEventListener('click', function () {
+    var cmd = el.getAttribute('data-cmd');
+    var view = el.getAttribute('data-view');
+    post(cmd, view ? { view: view } : {});
+  });
+});
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') post('close_panel'); });
+</script>
+</body>
+</html>
