@@ -355,7 +355,8 @@ pub fn main() {
                     "new_tab" => {
                         {
                             let mut st = kb_state.borrow_mut();
-                            st.tabs[st.active_idx].active = false;
+                            let idx = st.active_idx;
+                            st.tabs[idx].active = false;
                             let new_tab = Tab { id: uuid::Uuid::new_v4().to_string(), url: String::new(), title: "New Tab".into(), active: true };
                             st.tabs.push(new_tab);
                             st.active_idx = st.tabs.len() - 1;
@@ -452,14 +453,16 @@ pub fn main() {
                         let _ = std::fs::remove_dir_all(&profile_dir);
                     }
                     "switch_tab" => {
-                        let mut st = kb_state.borrow_mut();
-                        if let Some(pos) = st.tabs.iter().position(|t| t.id == msg.tab_id) {
-                            st.tabs[st.active_idx].active = false;
-                            st.active_idx = pos;
-                            st.tabs[pos].active = true;
-                            st.is_ntp = st.tabs[pos].url.is_empty();
+                        {
+                            let mut st = kb_state.borrow_mut();
+                            let idx = st.active_idx;
+                            st.tabs[idx].active = false;
+                            if let Some(pos) = st.tabs.iter().position(|t| t.id == msg.tab_id) {
+                                st.active_idx = pos;
+                                st.tabs[pos].active = true;
+                                st.is_ntp = st.tabs[pos].url.is_empty();
+                            }
                         }
-                        drop(st);
                         let s = kb_state.borrow();
                         if s.is_ntp {
                             drop(s);
@@ -474,30 +477,35 @@ pub fn main() {
                         sync_tabs_to_toolbar(&kb_webview, &s);
                     }
                     "close_tab" => {
-                        let mut st = kb_state.borrow_mut();
-                        if let Some(pos) = st.tabs.iter().position(|t| t.id == msg.tab_id) {
-                            st.tabs.remove(pos);
-                            if st.tabs.is_empty() {
-                                st.tabs.push(Tab { id: uuid::Uuid::new_v4().to_string(), url: String::new(), title: "New Tab".into(), active: true });
-                                st.active_idx = 0;
-                                drop(st);
-                                load_ntp(&kb_state);
-                            } else {
-                                if st.active_idx >= st.tabs.len() { st.active_idx = st.tabs.len() - 1; }
-                                st.tabs[st.active_idx].active = true;
-                                st.is_ntp = st.tabs[st.active_idx].url.is_empty();
-                                drop(st);
-                                let s = kb_state.borrow();
-                                if s.is_ntp {
-                                    drop(s);
-                                    load_ntp(&kb_state);
+                        let should_load_ntp;
+                        let url_to_load;
+                        {
+                            let mut st = kb_state.borrow_mut();
+                            if let Some(pos) = st.tabs.iter().position(|t| t.id == msg.tab_id) {
+                                st.tabs.remove(pos);
+                                if st.tabs.is_empty() {
+                                    st.tabs.push(Tab { id: uuid::Uuid::new_v4().to_string(), url: String::new(), title: "New Tab".into(), active: true });
+                                    st.active_idx = 0;
+                                    st.is_ntp = true;
+                                    should_load_ntp = true;
+                                    url_to_load = String::new();
                                 } else {
-                                    let url = s.tabs[s.active_idx].url.clone();
-                                    drop(s);
-                                    let _ = kb_webview.load_url(&url);
-                                    inject_toolbar(&kb_webview);
+                                    if st.active_idx >= st.tabs.len() { st.active_idx = st.tabs.len() - 1; }
+                                    st.tabs[st.active_idx].active = true;
+                                    st.is_ntp = st.tabs[st.active_idx].url.is_empty();
+                                    should_load_ntp = st.is_ntp;
+                                    url_to_load = st.tabs[st.active_idx].url.clone();
                                 }
+                            } else {
+                                should_load_ntp = true;
+                                url_to_load = String::new();
                             }
+                        }
+                        if should_load_ntp {
+                            load_ntp(&kb_state);
+                        } else {
+                            let _ = kb_webview.load_url(&url_to_load);
+                            inject_toolbar(&kb_webview);
                         }
                         let s = kb_state.borrow();
                         sync_tabs_to_toolbar(&kb_webview, &s);
