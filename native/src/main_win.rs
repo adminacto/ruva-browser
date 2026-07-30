@@ -491,10 +491,11 @@ pub fn main() {
                                     url_to_load = String::new();
                                 } else {
                                     if st.active_idx >= st.tabs.len() { st.active_idx = st.tabs.len() - 1; }
-                                    st.tabs[st.active_idx].active = true;
-                                    st.is_ntp = st.tabs[st.active_idx].url.is_empty();
+                                    let idx = st.active_idx;
+                                    st.tabs[idx].active = true;
+                                    st.is_ntp = st.tabs[idx].url.is_empty();
                                     should_load_ntp = st.is_ntp;
-                                    url_to_load = st.tabs[st.active_idx].url.clone();
+                                    url_to_load = st.tabs[idx].url.clone();
                                 }
                             } else {
                                 should_load_ntp = true;
