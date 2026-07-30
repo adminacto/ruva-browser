@@ -12,6 +12,7 @@ use wry::{WebView, WebViewBuilder, WebContext};
 const TOOLBAR_JS: &str = include_str!("../ui/toolbar_inject.js");
 const NTP_HTML: &str = include_str!("../ui/ntp.html");
 const SETTINGS_HTML: &str = include_str!("../ui/settings.html");
+const SPLASH_HTML: &str = include_str!("../ui/splash.html");
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const DATA_DIR: &str = ".ruva";
 const HARDCODED_API_KEY: &str = "";
@@ -24,6 +25,7 @@ struct IpcMsg {
     cmd: String,
     #[serde(default)] url: String,
     #[serde(default)] title: String,
+    #[serde(default)] tab_id: String,
     #[serde(default)] search_engine: String,
     #[serde(default)] homepage: Option<String>,
     #[serde(default)] bg_color: Option<String>,
@@ -195,6 +197,29 @@ fn inject_toolbar(wv: &WebView) {
     let _ = wv.evaluate_script(&toolbar_init_script());
 }
 
+fn sync_tabs_to_toolbar(wv: &WebView, state: &AppState) {
+    let tabs_json: Vec<serde_json::Value> = state.tabs.iter().map(|t| {
+        serde_json::json!({"id": t.id, "title": t.title, "url": t.url, "active": t.active})
+    }).collect();
+    let active_id = state.tabs.get(state.active_idx).map(|t| t.id.as_str()).unwrap_or("");
+    let js = format!(
+        "if(window.__ruvaUpdateTabs){{window.__ruvaUpdateTabs({},'{}');}}",
+        serde_json::to_string(&tabs_json).unwrap_or_default(),
+        active_id
+    );
+    let _ = wv.evaluate_script(&js);
+}
+
+fn sync_url_to_toolbar(wv: &WebView, state: &AppState) {
+    let url = state.tabs.get(state.active_idx).map(|t| t.url.as_str()).unwrap_or("");
+    let title = state.tabs.get(state.active_idx).map(|t| t.title.as_str()).unwrap_or("");
+    let js = format!(
+        "if(window.__ruvaUpdateUrl){{window.__ruvaUpdateUrl('{}');}}",
+        url.replace('\\', "\\\\").replace('\'', "\\'")
+    );
+    let _ = wv.evaluate_script(&js);
+}
+
 fn navigate_to(state: &Rc<RefCell<AppState>>, url: &str) {
     {
         let mut s = state.borrow_mut();
@@ -265,8 +290,9 @@ pub fn main() {
     }));
 
     let ipc_proxy = proxy.clone();
+    let splash_with_redirect = SPLASH_HTML.replace("</body>", "<script>setTimeout(function(){window.location.href='about:blank';},3000);</script></body>");
     let webview_result = WebViewBuilder::with_web_context(&mut web_context)
-        .with_html(load_ntp_html(&state))
+        .with_html(&splash_with_redirect)
         .with_user_agent(USER_AGENT)
         .with_initialization_script(&toolbar_init_script())
         .with_ipc_handler(move |req: Request<String>| {
@@ -292,11 +318,17 @@ pub fn main() {
 
     let kb_state = state.clone();
     let kb_webview = webview.clone();
+    let splash_proxy = proxy.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(3));
+        let _ = splash_proxy.send_event(());
+    });
     // Keep the web context alive for the lifetime of the app.
     let _web_context = web_context;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
+        let mut splash_done = false;
 
         while let Ok(text) = ai_rx.try_recv() {
             let safe = text.replace('\\', "\\\\").replace('`', "\\`").replace('\n', "<br>").replace('\r', "").replace('\'', "\\'").replace('"', "&quot;").replace('<', "&lt;").replace('>', "&gt;");
@@ -317,6 +349,21 @@ pub fn main() {
                         } else {
                             navigate_to(&kb_state, &url);
                         }
+                        let s = kb_state.borrow();
+                        sync_tabs_to_toolbar(&kb_webview, &s);
+                    }
+                    "new_tab" => {
+                        {
+                            let mut st = kb_state.borrow_mut();
+                            st.tabs[st.active_idx].active = false;
+                            let new_tab = Tab { id: uuid::Uuid::new_v4().to_string(), url: String::new(), title: "New Tab".into(), active: true };
+                            st.tabs.push(new_tab);
+                            st.active_idx = st.tabs.len() - 1;
+                            st.is_ntp = true;
+                        }
+                        load_ntp(&kb_state);
+                        let s = kb_state.borrow();
+                        sync_tabs_to_toolbar(&kb_webview, &s);
                     }
                     "back" => {
                         let _ = kb_webview.evaluate_script("history.back()");
@@ -331,6 +378,9 @@ pub fn main() {
                         let mut st = kb_state.borrow_mut();
                         let idx = st.active_idx;
                         if let Some(tab) = st.tabs.get_mut(idx) { tab.title = msg.title.clone(); }
+                        drop(st);
+                        let s = kb_state.borrow();
+                        sync_tabs_to_toolbar(&kb_webview, &s);
                     }
                     "save_settings" => {
                         {
@@ -350,8 +400,9 @@ pub fn main() {
                             if let Some(ref m) = msg.ai_model { st.settings.ai_model = m.clone(); }
                             st.settings.save();
                         }
-                        // Return to the new tab page so the changes are visible.
                         load_ntp(&kb_state);
+                        let s = kb_state.borrow();
+                        sync_tabs_to_toolbar(&kb_webview, &s);
                     }
                     "open_settings" => {
                         load_settings_page(&kb_state);
@@ -400,6 +451,57 @@ pub fn main() {
                         let profile_dir = data_dir.join("EBWebView");
                         let _ = std::fs::remove_dir_all(&profile_dir);
                     }
+                    "switch_tab" => {
+                        let mut st = kb_state.borrow_mut();
+                        if let Some(pos) = st.tabs.iter().position(|t| t.id == msg.tab_id) {
+                            st.tabs[st.active_idx].active = false;
+                            st.active_idx = pos;
+                            st.tabs[pos].active = true;
+                            st.is_ntp = st.tabs[pos].url.is_empty();
+                        }
+                        drop(st);
+                        let s = kb_state.borrow();
+                        if s.is_ntp {
+                            drop(s);
+                            load_ntp(&kb_state);
+                        } else {
+                            let url = s.tabs[s.active_idx].url.clone();
+                            drop(s);
+                            let _ = kb_webview.load_url(&url);
+                            inject_toolbar(&kb_webview);
+                        }
+                        let s = kb_state.borrow();
+                        sync_tabs_to_toolbar(&kb_webview, &s);
+                    }
+                    "close_tab" => {
+                        let mut st = kb_state.borrow_mut();
+                        if let Some(pos) = st.tabs.iter().position(|t| t.id == msg.tab_id) {
+                            st.tabs.remove(pos);
+                            if st.tabs.is_empty() {
+                                st.tabs.push(Tab { id: uuid::Uuid::new_v4().to_string(), url: String::new(), title: "New Tab".into(), active: true });
+                                st.active_idx = 0;
+                                drop(st);
+                                load_ntp(&kb_state);
+                            } else {
+                                if st.active_idx >= st.tabs.len() { st.active_idx = st.tabs.len() - 1; }
+                                st.tabs[st.active_idx].active = true;
+                                st.is_ntp = st.tabs[st.active_idx].url.is_empty();
+                                drop(st);
+                                let s = kb_state.borrow();
+                                if s.is_ntp {
+                                    drop(s);
+                                    load_ntp(&kb_state);
+                                } else {
+                                    let url = s.tabs[s.active_idx].url.clone();
+                                    drop(s);
+                                    let _ = kb_webview.load_url(&url);
+                                    inject_toolbar(&kb_webview);
+                                }
+                            }
+                        }
+                        let s = kb_state.borrow();
+                        sync_tabs_to_toolbar(&kb_webview, &s);
+                    }
                     _ => {}
                 }
             }
@@ -410,6 +512,14 @@ pub fn main() {
                 WindowEvent::CloseRequested => { *control_flow = ControlFlow::Exit; }
                 _ => {}
             },
+            Event::UserEvent(()) => {
+                if !splash_done {
+                    splash_done = true;
+                    load_ntp(&kb_state);
+                    let s = kb_state.borrow();
+                    sync_tabs_to_toolbar(&kb_webview, &s);
+                }
+            }
             _ => {}
         }
     });

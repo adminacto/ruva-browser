@@ -175,21 +175,27 @@ input[type="file"]{position:absolute;width:0;height:0;opacity:0;pointer-events:n
   </div>
   <div class="field">
     <label>Фоновое изображение</label>
-    <label class="file-label" for="bgImageFile">
-      <span>&#128444;</span>
-      <span id="imgLabel">Выбрать изображение с устройства</span>
-      <input type="file" id="bgImageFile" accept="image/*">
-    </label>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label class="file-label" for="bgImageFile">
+        <span>&#128444;</span>
+        <span id="imgLabel">Выбрать изображение с устройства</span>
+        <input type="file" id="bgImageFile" accept="image/*">
+      </label>
+      <button class="btn btn-danger" id="clearBgImage" style="display:none;padding:8px 14px;font-size:12px">&#10005; Удалить</button>
+    </div>
     <div class="file-path" id="imgFilePath"></div>
     <div class="img-preview" id="imgPreview"><span class="placeholder">Превью изображения</span></div>
   </div>
   <div class="field">
     <label>Фоновое видео</label>
-    <label class="file-label" for="bgVideoFile">
-      <span>&#127909;</span>
-      <span id="vidLabel">Выбрать видео с устройства</span>
-      <input type="file" id="bgVideoFile" accept="video/*">
-    </label>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label class="file-label" for="bgVideoFile">
+        <span>&#127909;</span>
+        <span id="vidLabel">Выбрать видео с устройства</span>
+        <input type="file" id="bgVideoFile" accept="video/*">
+      </label>
+      <button class="btn btn-danger" id="clearBgVideo" style="display:none;padding:8px 14px;font-size:12px">&#10005; Удалить</button>
+    </div>
     <div class="file-path" id="vidFilePath"></div>
   </div>
 </div>
@@ -508,9 +514,20 @@ document.getElementById('bgImageFile').addEventListener('change', function() {
     document.getElementById('imgFilePath').textContent = file.name;
     document.getElementById('imgLabel').textContent = file.name;
     document.getElementById('imgPreview').innerHTML = '<img src="' + currentBgImage + '">';
+    document.getElementById('clearBgImage').style.display = 'inline-flex';
     saveSettings();
   };
   reader.readAsDataURL(file);
+});
+
+document.getElementById('clearBgImage').addEventListener('click', function() {
+  currentBgImage = '';
+  document.getElementById('imgFilePath').textContent = '';
+  document.getElementById('imgLabel').textContent = '\u{1f5bc} Выбрать изображение с устройства';
+  document.getElementById('imgPreview').innerHTML = '<span class="placeholder">\u{041f}\u{0440}\u{0435}\u{0432}\u{044c}\u{044e} изображения</span>';
+  this.style.display = 'none';
+  document.getElementById('bgImageFile').value = '';
+  saveSettings();
 });
 
 document.getElementById('bgVideoFile').addEventListener('change', function() {
@@ -521,9 +538,19 @@ document.getElementById('bgVideoFile').addEventListener('change', function() {
     currentBgVideo = e.target.result;
     document.getElementById('vidFilePath').textContent = file.name;
     document.getElementById('vidLabel').textContent = file.name;
+    document.getElementById('clearBgVideo').style.display = 'inline-flex';
     saveSettings();
   };
   reader.readAsDataURL(file);
+});
+
+document.getElementById('clearBgVideo').addEventListener('click', function() {
+  currentBgVideo = '';
+  document.getElementById('vidFilePath').textContent = '';
+  document.getElementById('vidLabel').textContent = '\u{1f3ac} Выбрать видео с устройства';
+  this.style.display = 'none';
+  document.getElementById('bgVideoFile').value = '';
+  saveSettings();
 });
 
 document.getElementById('addQuickLink').addEventListener('click', function() {
@@ -579,10 +606,12 @@ function applySettings(s) {
     currentBgImage = s.bg_image;
     document.getElementById('imgPreview').innerHTML = '<img src="' + s.bg_image + '">';
     document.getElementById('imgLabel').textContent = '\u{2705} Изображение установлено';
+    document.getElementById('clearBgImage').style.display = 'inline-flex';
   }
   if (s.bg_video) {
     currentBgVideo = s.bg_video;
     document.getElementById('vidLabel').textContent = '\u{2705} Видео установлено';
+    document.getElementById('clearBgVideo').style.display = 'inline-flex';
   }
   if (s.bg_color) {
     document.querySelectorAll('#bgColors .color-swatch').forEach(function(sw) {
